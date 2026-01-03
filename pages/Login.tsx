@@ -218,10 +218,17 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       
       {/* Global CSS for unique animations */}
       <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         @keyframes scanLine {
           0% { top: 0; opacity: 0; }
           50% { opacity: 1; }
           100% { top: 100%; opacity: 0; }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.5s ease-out forwards;
         }
         .animate-scanLine {
           animation: scanLine 2s linear infinite;
