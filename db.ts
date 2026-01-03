@@ -1,10 +1,9 @@
-import { Dexie, type Table } from 'dexie';
+import Dexie, { type Table } from 'dexie';
 import { Transaction, Goal, UserProfile } from './types';
 
-// Fix: Using named import for Dexie to ensure proper class inheritance and type resolution.
-// In some TypeScript environments, the 'Dexie' class is primarily exposed as 
-// a named export for proper extending. This ensures methods like 'version' and 'stores' 
-// are correctly recognized on the subclass instance by the TypeScript compiler.
+// Fix: Using the default import for Dexie to ensure proper class inheritance and type resolution.
+// In many TypeScript environments, extending from the named export of Dexie can lead to 
+// missing method signatures on the subclass. This fix ensures 'version' and 'stores' are recognized.
 export class InovaFinanceDB extends Dexie {
   transactions!: Table<Transaction>;
   goals!: Table<Goal>;

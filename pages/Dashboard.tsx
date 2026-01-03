@@ -9,10 +9,10 @@ import {
 
 const COLORS = {
   ganho: '#4A90FF',
-  Mercado: '#50C878',
-  Serviços: '#FF8C42',
-  'Lazer/Delivery': '#7A5CFA',
-  Outros: '#6B7A8F'
+  Mercado: '#7A5CFA',
+  Serviços: '#4A90FF',
+  'Lazer/Delivery': '#C084FC',
+  Outros: '#64748b'
 };
 
 const Dashboard: React.FC<{ userId: string }> = ({ userId }) => {
@@ -67,115 +67,144 @@ const Dashboard: React.FC<{ userId: string }> = ({ userId }) => {
     });
   })();
 
-  if (isLoading) return <div className="flex items-center justify-center h-full text-[#7A5CFA] font-bold animate-pulse">Sincronizando dados...</div>;
+  if (isLoading) return (
+    <div className="flex flex-col items-center justify-center h-full gap-4">
+      <div className="w-12 h-12 border-4 border-[#7A5CFA]/20 border-t-[#7A5CFA] rounded-full animate-spin"></div>
+      <p className="text-[#7A5CFA] font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">Sincronizando Ecossistema...</p>
+    </div>
+  );
 
   return (
-    <div className="flex flex-col gap-8 py-6 animate-fadeIn">
-      {/* AI Insights Banner */}
-      <div className="bg-gradient-to-r from-[#7A5CFA] to-[#4A90FF] p-6 rounded-[24px] shadow-lg text-white flex items-center justify-between relative overflow-hidden tech-card">
+    <div className="flex flex-col gap-8 py-6 pb-24">
+      {/* AI Intelligence Header */}
+      <div className="reveal-card stagger-1 bg-gradient-to-r from-[#7A5CFA] via-[#4A90FF] to-[#7A5CFA] bg-[length:200%_100%] animate-gradient p-8 rounded-[40px] shadow-2xl text-white flex items-center justify-between relative overflow-hidden">
         <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-1">
-            <i className="fas fa-robot text-sm"></i>
-            <span className="text-[10px] font-black uppercase tracking-widest">IA Insight</span>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+            <span className="text-[10px] font-black uppercase tracking-[0.5em] opacity-80">IA Engine Online</span>
           </div>
-          <h3 className="text-xl font-black italic">
-            {totalGastos > totalGanhos 
-              ? "Atenção: Fluxo de caixa negativo detectado. Vamos otimizar?" 
-              : "Parabéns! Suas economias estão crescendo em ritmo constante."}
+          <h3 className="text-3xl font-black tracking-tighter mb-1">
+            {currentBalance >= 0 ? 'Gestão Otimizada' : 'Atenção Necessária'}
           </h3>
-          <p className="text-xs opacity-80 mt-1 font-bold">Resumo tecnológico do seu patrimônio.</p>
+          <p className="text-sm font-bold opacity-70">
+            {totalGastos > totalGanhos 
+              ? "Seus gastos mensais superaram as entradas. Analise agora." 
+              : "Excelente performance! Seu patrimônio segue em trajetória de alta."}
+          </p>
         </div>
-        <i className="fas fa-brain text-7xl opacity-10 absolute -right-4 -bottom-4"></i>
+        <i className="fas fa-brain text-9xl opacity-10 absolute -right-6 -bottom-6 rotate-12"></i>
       </div>
 
+      {/* KPI Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white/70 backdrop-blur-md p-6 rounded-[24px] shadow-sm border border-white tech-card flex flex-col justify-between">
-          <span className="text-gray-400 font-black text-[10px] uppercase tracking-widest">Patrimônio Atual</span>
-          <h2 className={`text-4xl font-black mt-2 tracking-tighter ${currentBalance >= 0 ? 'text-[#1A1A1A]' : 'text-red-500'}`}>
-            R$ {currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </h2>
-          <div className="mt-4 flex items-center gap-2 text-[10px] text-[#7A5CFA] font-black uppercase tracking-widest">
-            <i className="fas fa-check-circle"></i>
-            <span>Offline Sync Ativo</span>
+        <div className="reveal-card stagger-1 tech-card glow-purple p-8 h-48 flex flex-col justify-between">
+          <div>
+            <span className="text-slate-500 font-black text-[10px] uppercase tracking-[0.3em]">Saldo Total</span>
+            <h2 className={`text-4xl font-black mt-2 tracking-tighter ${currentBalance >= 0 ? 'text-white' : 'text-red-400'}`}>
+              R$ {currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </h2>
+          </div>
+          <div className="flex items-center gap-2 text-[9px] text-[#7A5CFA] font-black uppercase tracking-widest">
+            <i className="fas fa-check-double"></i>
+            <span>Dados Sincronizados</span>
           </div>
         </div>
 
-        <div className="bg-white/70 backdrop-blur-md p-6 rounded-[24px] shadow-sm border border-white tech-card flex flex-col justify-between">
-          <span className="text-gray-400 font-black text-[10px] uppercase tracking-widest text-[#4A90FF]">Ganhos</span>
-          <h2 className="text-4xl font-black mt-2 text-[#4A90FF] tracking-tighter">R$ {totalGanhos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h2>
+        <div className="reveal-card stagger-2 tech-card glow-blue p-8 h-48 flex flex-col justify-between">
+          <div>
+            <span className="text-[#4A90FF] font-black text-[10px] uppercase tracking-[0.3em]">Entradas</span>
+            <h2 className="text-4xl font-black mt-2 text-white tracking-tighter">
+              + R$ {totalGanhos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </h2>
+          </div>
+          <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+            <div className="bg-[#4A90FF] h-full" style={{ width: '100%' }}></div>
+          </div>
         </div>
 
-        <div className="bg-white/70 backdrop-blur-md p-6 rounded-[24px] shadow-sm border border-white tech-card flex flex-col justify-between">
-          <span className="text-gray-400 font-black text-[10px] uppercase tracking-widest text-[#FF8C42]">Gastos</span>
-          <h2 className="text-4xl font-black mt-2 text-[#FF8C42] tracking-tighter">R$ {totalGastos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h2>
+        <div className="reveal-card stagger-3 tech-card glow-purple p-8 h-48 flex flex-col justify-between">
+          <div>
+            <span className="text-[#7A5CFA] font-black text-[10px] uppercase tracking-[0.3em]">Saídas</span>
+            <h2 className="text-4xl font-black mt-2 text-white tracking-tighter">
+              - R$ {totalGastos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </h2>
+          </div>
+          <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+            <div className="bg-[#7A5CFA] h-full" style={{ width: '100%' }}></div>
+          </div>
         </div>
       </div>
 
+      {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white/60 backdrop-blur-lg p-8 rounded-[32px] shadow-sm border border-white tech-card min-h-[420px]">
-          <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-2">
-            <i className="fas fa-chart-pie text-[#7A5CFA]"></i>
-            Categorias Tech
+        <div className="reveal-card tech-card p-10 min-h-[450px]">
+          <h3 className="text-xl font-black text-white mb-8 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#7A5CFA]/20 flex items-center justify-center text-[#7A5CFA]">
+              <i className="fas fa-chart-pie"></i>
+            </div>
+            Mix de Categorias
           </h3>
           {pieData.length > 0 ? (
-            <div className="h-[300px]">
+            <div className="h-[320px]">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie 
                     data={pieData} 
-                    innerRadius={70} 
-                    outerRadius={110} 
-                    paddingAngle={8} 
+                    innerRadius={85} 
+                    outerRadius={125} 
+                    paddingAngle={10} 
                     dataKey="value"
-                    animationBegin={200}
-                    animationDuration={1200}
+                    stroke="none"
                   >
                     {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[entry.name as keyof typeof COLORS] || '#6B7A8F'} stroke="none" />
+                      <Cell key={`cell-${index}`} fill={COLORS[entry.name as keyof typeof COLORS] || '#64748b'} />
                     ))}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', fontWeight: '900' }}
+                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
+                    itemStyle={{ color: '#fff' }}
                   />
                 </PieChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-gray-300 font-bold opacity-40">
-              <i className="fas fa-database text-5xl mb-3"></i>
-              <p>Nenhuma movimentação detectada.</p>
+            <div className="flex flex-col items-center justify-center h-full text-slate-700 font-black opacity-30">
+              <i className="fas fa-database text-6xl mb-4"></i>
+              <p className="uppercase tracking-widest text-xs">Sem dados no período</p>
             </div>
           )}
         </div>
 
-        <div className="bg-white/60 backdrop-blur-lg p-8 rounded-[32px] shadow-sm border border-white tech-card min-h-[420px]">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
-              <i className="fas fa-wave-square text-[#7A5CFA]"></i>
-              Evolução de Saldo
+        <div className="reveal-card tech-card p-10 min-h-[450px]">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-xl font-black text-white flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#4A90FF]/20 flex items-center justify-center text-[#4A90FF]">
+                <i className="fas fa-wave-square"></i>
+              </div>
+              Projeção de Saldo
             </h3>
-            <div className="text-[10px] font-black text-[#4A90FF] bg-[#4A90FF]/10 px-4 py-1 rounded-full uppercase tracking-widest">Semana</div>
+            <span className="text-[9px] font-black text-[#4A90FF] border border-[#4A90FF]/30 px-4 py-2 rounded-full uppercase tracking-widest">7 Dias</span>
           </div>
-          <div className="h-[300px] w-full">
+          <div className="h-[320px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={evolutionData}>
                 <defs>
                   <linearGradient id="colorSaldo" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#7A5CFA" stopOpacity={0.4}/>
+                    <stop offset="5%" stopColor="#7A5CFA" stopOpacity={0.6}/>
                     <stop offset="95%" stopColor="#7A5CFA" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
                 <XAxis 
                   dataKey="date" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{fontSize: 10, fontWeight: 900, fill: '#cbd5e1'}} 
+                  tick={{fontSize: 9, fontWeight: 900, fill: '#64748b'}} 
                   dy={15} 
                 />
                 <YAxis hide />
                 <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '20px', border: 'none', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}
                 />
                 <Area 
                   type="monotone" 
@@ -191,6 +220,17 @@ const Dashboard: React.FC<{ userId: string }> = ({ userId }) => {
           </div>
         </div>
       </div>
+      
+      <style>{`
+        @keyframes gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .animate-gradient {
+          animation: gradient 8s ease infinite;
+        }
+      `}</style>
     </div>
   );
 };
