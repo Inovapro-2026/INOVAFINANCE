@@ -165,7 +165,9 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             {/* Custom Numpad */}
             <div className="grid grid-cols-3 gap-y-5 gap-x-8 justify-items-center max-w-[280px] mx-auto">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((n, i) => (
-                <NumberButton key={n} val={n} index={i} />
+                <React.Fragment key={n}>
+                  <NumberButton val={n} index={i} />
+                </React.Fragment>
               ))}
               
               <button 
