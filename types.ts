@@ -20,8 +20,6 @@ export interface Goal {
   deadline: string;
 }
 
-export type ThemeMode = 'light' | 'dark';
-
 export interface UserProfile {
   userId: string;
   fullName?: string;
@@ -30,7 +28,6 @@ export interface UserProfile {
   birthDate?: string;
   biometricCredentialId?: string;
   initialBalance?: number; // Saldo inicial definido pelo usuário
-  theme?: ThemeMode; // Tema do usuário
 }
 
 export enum Page {

@@ -100,9 +100,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
     }
   };
 
-  // Fix: Added optional 'key' to the props type to resolve TypeScript error when NumberButton is used in a map.
-  // Although React handles the 'key' prop internally, inline component definitions sometimes require explicit inclusion in the type literal.
-  const NumberButton = ({ val, index }: { val: string; index: number; key?: string | number }) => (
+  const NumberButton = ({ val, index }: { val: string; index: number }) => (
     <button
       type="button"
       onClick={() => handleNumberClick(val)}
@@ -117,7 +115,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 overflow-hidden bg-gradient-to-br from-[#0a0f1d] via-[#1a1f3a] to-[#0a0f1d]">
+    <div className="min-h-screen flex items-center justify-center p-6 overflow-hidden">
       {/* Biometric Scanning Overlay */}
       {isScanning && (
         <div className="fixed inset-0 z-[200] bg-[#1A1A1A]/90 backdrop-blur-md flex flex-col items-center justify-center animate-fadeIn">
@@ -218,17 +216,10 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
       
       {/* Global CSS for unique animations */}
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
         @keyframes scanLine {
           0% { top: 0; opacity: 0; }
           50% { opacity: 1; }
           100% { top: 100%; opacity: 0; }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.5s ease-out forwards;
         }
         .animate-scanLine {
           animation: scanLine 2s linear infinite;

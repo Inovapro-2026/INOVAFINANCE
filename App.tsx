@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { ThemeProvider } from './contexts/ThemeContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import TransactionsPage from './pages/TransactionsPage';
@@ -56,7 +55,7 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--bg-main)]">
+    <div className="flex h-screen overflow-hidden bg-[#f8fafc]/50">
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <Sidebar />
@@ -91,11 +90,9 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <ThemeProvider>
-      <HashRouter>
-        <AppContent />
-      </HashRouter>
-    </ThemeProvider>
+    <HashRouter>
+      <AppContent />
+    </HashRouter>
   );
 };
 
