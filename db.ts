@@ -1,8 +1,8 @@
 
-import Dexie, { type Table } from 'dexie';
+import { Dexie, type Table } from 'dexie';
 import { Transaction, Goal, UserProfile } from './types';
 
-// Fix: Using default import for Dexie to ensure that the class and its inherited methods (like version) are correctly resolved in the subclass.
+// Using a named import for Dexie to ensure that the class and its inherited methods (like version) are correctly resolved in the subclass.
 export class InovaFinanceDB extends Dexie {
   transactions!: Table<Transaction>;
   goals!: Table<Goal>;
@@ -11,7 +11,7 @@ export class InovaFinanceDB extends Dexie {
   constructor() {
     super('InovaFinanceDB');
     
-    // The version() method is a standard Dexie instance method used to define the schema.
+    // The version() method is a standard Dexie instance method used to define the database schema and versioning.
     this.version(1).stores({
       transactions: '++id, userId, type, category, date',
       goals: '++id, userId, deadline',
