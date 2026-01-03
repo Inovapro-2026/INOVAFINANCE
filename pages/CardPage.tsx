@@ -61,7 +61,6 @@ const CardPage: React.FC<{ userId: string }> = ({ userId }) => {
         <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em] mt-2">Toque para revelar o verso</p>
       </div>
 
-      {/* Container de Perspectiva Estabilizado - Garante posição fixa */}
       <div 
         className="relative w-full max-w-[380px] aspect-[1.58/1] cursor-pointer perspective-container flex-shrink-0"
         onClick={() => setIsFlipped(!isFlipped)}
@@ -75,7 +74,6 @@ const CardPage: React.FC<{ userId: string }> = ({ userId }) => {
                 <span className="text-white text-base md:text-lg font-black tracking-tighter">INOVAFINANCE <span className="text-[#7A5CFA]">BANK</span></span>
                 <div className="w-8 h-1 mt-1 bg-[#7A5CFA] rounded-full"></div>
               </div>
-              {/* Chip Tech Premium */}
               <div className="w-12 h-9 bg-gradient-to-br from-yellow-200 via-yellow-500 to-yellow-800 rounded-md flex items-center justify-center overflow-hidden shadow-inner relative">
                  <div className="w-full h-full opacity-30 carbon-texture"></div>
                  <div className="absolute inset-0 grid grid-cols-2 gap-px p-1">
