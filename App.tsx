@@ -56,7 +56,7 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f8fafc]/50">
+    <div className="flex h-screen overflow-hidden bg-[var(--bg-main)]">
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <Sidebar />

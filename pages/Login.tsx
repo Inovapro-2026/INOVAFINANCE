@@ -117,7 +117,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   );
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center p-6 overflow-hidden bg-gradient-to-br from-[#0a0f1d] via-[#1a1f3a] to-[#0a0f1d]">
       {/* Biometric Scanning Overlay */}
       {isScanning && (
         <div className="fixed inset-0 z-[200] bg-[#1A1A1A]/90 backdrop-blur-md flex flex-col items-center justify-center animate-fadeIn">
