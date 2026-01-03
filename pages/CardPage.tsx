@@ -23,16 +23,14 @@ const CardPage: React.FC<{ userId: string }> = ({ userId }) => {
 
     const generateValidity = () => {
       const month = String(Math.floor(Math.random() * 12) + 1).padStart(2, '0');
-      const year = String(new Date().getFullYear() + Math.floor(Math.random() * 5) + 1).slice(-2);
+      const year = String(new Date().getFullYear() + 5).slice(-2);
       return `${month}/${year}`;
     };
 
     const loadData = async () => {
-        // Busca o perfil para pegar o nome real do usuário
         const profile = await db.profiles.get(userId);
-        const displayName = profile?.fullName?.toUpperCase() || `CLIENTE ${userId}`;
+        const displayName = profile?.fullName?.toUpperCase() || `USER ${userId}`;
 
-        // Busca o saldo atual do DB para dar realismo total
         const txs = await db.transactions.where('userId').equals(userId).toArray();
         const current = (profile?.initialBalance || 0) + 
                         txs.filter(t => t.type === 'ganho').reduce((acc, t) => acc + t.amount, 0) -
@@ -43,7 +41,7 @@ const CardPage: React.FC<{ userId: string }> = ({ userId }) => {
             number: generateNumber(),
             validity: generateValidity(),
             cvv: String(Math.floor(100 + Math.random() * 900)),
-            balance: current // Saldo real do usuário, conforme solicitado
+            balance: current
         });
     };
 
@@ -51,117 +49,125 @@ const CardPage: React.FC<{ userId: string }> = ({ userId }) => {
   }, [userId]);
 
   return (
-    <div className="h-full flex flex-col items-center justify-center py-10 animate-fadeIn">
-      <div className="text-center mb-10">
-        <h2 className="text-3xl font-black text-gray-800 tracking-tighter uppercase">INOVAFINANCE <span className="text-[#7A5CFA]">BLACK</span></h2>
-        <p className="text-gray-400 font-bold text-xs uppercase tracking-[0.3em] mt-1">Toque para girar e ver detalhes</p>
+    <div className="h-full flex flex-col items-center justify-center py-6 md:py-10 animate-fadeIn overflow-hidden">
+      <div className="text-center mb-8 md:mb-12">
+        <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-full mb-4">
+          <div className="w-2 h-2 bg-[#7A5CFA] rounded-full animate-pulse"></div>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status: Cartão Ativo</span>
+        </div>
+        <h2 className="text-3xl md:text-4xl font-black text-white tracking-tighter uppercase">
+          INOVAFINANCE <span className="text-[#7A5CFA] drop-shadow-[0_0_15px_rgba(122,90,250,0.5)]">BLACK</span>
+        </h2>
+        <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em] mt-2">Toque no cartão para girar</p>
       </div>
 
+      {/* Container fixo com aspect-ratio e perspectiva estável */}
       <div 
-        className="card-container relative w-full max-w-[400px] aspect-[1.58/1] cursor-pointer perspective-1000 group active:scale-95 transition-transform"
+        className="relative w-full max-w-[380px] aspect-[1.58/1] cursor-pointer perspective-2000 px-4"
         onClick={() => setIsFlipped(!isFlipped)}
       >
-        <div className="card-glow"></div>
-        
-        <div className={`card-inner w-full h-full ${isFlipped ? 'card-flip' : ''}`}>
+        <div className={`card-inner ${isFlipped ? 'card-flip' : ''}`}>
           
           {/* FRENTE DO CARTÃO */}
-          <div className="card-face card-front bg-gradient-to-br from-[#121212] via-[#242424] to-[#000000] p-8 flex flex-col justify-between shadow-2xl border border-white/10">
-            <div className="flex justify-between items-start">
+          <div className="card-face card-front bg-gradient-to-br from-[#1a1c2c] via-[#0a0f1d] to-[#000000] p-6 md:p-8 justify-between shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] border border-white/10 animate-shine">
+            <div className="flex justify-between items-start relative z-10">
               <div className="flex flex-col">
-                <span className="text-white text-lg font-black tracking-tighter">INOVAFINANCE <span className="text-[#7A5CFA]">BANK</span></span>
-                <div className="w-10 h-1 mt-1 bg-gradient-to-r from-[#7A5CFA] to-transparent rounded-full"></div>
+                <span className="text-white text-base md:text-lg font-black tracking-tighter">INOVAFINANCE <span className="text-[#7A5CFA]">BANK</span></span>
+                <div className="w-8 h-1 mt-1 bg-[#7A5CFA] rounded-full"></div>
               </div>
-              <div className="w-14 h-10 bg-gradient-to-br from-yellow-200 via-yellow-400 to-yellow-600 rounded-lg flex items-center justify-center shadow-inner">
-                 <div className="grid grid-cols-2 gap-1 opacity-40">
-                    <div className="w-3 h-3 border border-black/20 rounded-sm"></div>
-                    <div className="w-3 h-3 border border-black/20 rounded-sm"></div>
-                    <div className="w-3 h-3 border border-black/20 rounded-sm"></div>
-                    <div className="w-3 h-3 border border-black/20 rounded-sm"></div>
+              {/* Chip Tech */}
+              <div className="w-12 h-9 bg-gradient-to-br from-yellow-100 via-yellow-500 to-yellow-700 rounded-md flex items-center justify-center overflow-hidden shadow-inner">
+                 <div className="w-full h-full opacity-30 carbon-texture"></div>
+                 <div className="absolute grid grid-cols-2 gap-px w-8 h-6">
+                    <div className="border border-black/10"></div>
+                    <div className="border border-black/10"></div>
+                    <div className="border border-black/10"></div>
+                    <div className="border border-black/10"></div>
                  </div>
               </div>
             </div>
 
-            <div className="space-y-6">
-              <div className="text-white text-2xl font-bold tracking-[0.15em] drop-shadow-md">
-                {cardData.number || '0000 0000 0000 0000'}
+            <div className="space-y-6 relative z-10">
+              <div className="text-white text-xl md:text-2xl font-bold tracking-[0.18em] font-mono drop-shadow-lg">
+                {cardData.number || '•••• •••• •••• ••••'}
               </div>
 
               <div className="flex justify-between items-end">
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Titular</span>
-                  <span className="text-white font-bold tracking-wider truncate max-w-[200px]">{cardData.name || 'CARREGANDO...'}</span>
+                  <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Titular</span>
+                  <span className="text-white text-xs md:text-sm font-bold tracking-wider truncate max-w-[180px]">{cardData.name || 'CLIENTE PREMIUM'}</span>
                 </div>
                 <div className="flex flex-col text-right">
-                  <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Validade</span>
-                  <span className="text-white font-bold">{cardData.validity || '00/00'}</span>
+                  <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Exp</span>
+                  <span className="text-white text-xs md:text-sm font-bold">{cardData.validity || '00/00'}</span>
                 </div>
               </div>
             </div>
             
-            {/* Efeito Tech Overlay */}
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none rounded-[1.5rem]"></div>
+            {/* Texture Overlay */}
+            <div className="absolute inset-0 carbon-texture opacity-10 pointer-events-none"></div>
           </div>
 
           {/* VERSO DO CARTÃO */}
-          <div className="card-face card-back bg-[#1a1a1a] flex flex-col shadow-2xl overflow-hidden border border-white/5">
-            <div className="w-full h-12 bg-[#000000] mt-6"></div>
+          <div className="card-face card-back bg-gradient-to-br from-[#0a0f1d] to-[#1a1c2c] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] border border-white/5">
+            <div className="w-full h-12 bg-[#000000]/80 mt-6 md:mt-8"></div>
             
-            <div className="px-8 pt-6 flex-1 space-y-4">
+            <div className="px-6 md:px-8 pt-4 md:pt-6 flex-1 space-y-4">
               <div className="flex items-center gap-4">
-                <div className="flex-1 h-10 bg-gray-200/90 rounded-md flex items-center justify-end px-4 text-gray-800 font-black italic text-sm tracking-widest">
-                  {cardData.cvv}
+                <div className="flex-1 h-9 bg-slate-800/50 rounded flex items-center justify-end px-4 text-white/40 font-mono text-xs tracking-widest border border-white/5">
+                  CVV {cardData.cvv}
                 </div>
-                <div className="w-12 h-8 bg-gray-800 rounded flex items-center justify-center">
-                    <i className="fas fa-shield-halved text-gray-500 text-xs"></i>
+                <div className="w-12 h-8 flex items-center justify-center opacity-40">
+                    <i className="fab fa-mastercard text-white text-3xl"></i>
                 </div>
               </div>
 
-              <div className="space-y-3 pt-2">
-                <div className="flex flex-col">
-                    <span className="text-[8px] text-gray-500 font-black uppercase tracking-[0.2em]">Nome Completo</span>
-                    <span className="text-white text-xs font-bold uppercase truncate">{cardData.name}</span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                   <div className="flex flex-col">
-                        <span className="text-[8px] text-gray-500 font-black uppercase tracking-[0.2em]">Matrícula ID</span>
-                        <span className="text-[#7A5CFA] text-xs font-black">{userId}</span>
-                   </div>
-                   <div className="flex flex-col text-right">
-                        <span className="text-[8px] text-gray-500 font-black uppercase tracking-[0.2em]">Tipo de Conta</span>
-                        <span className="text-white text-[10px] font-black italic uppercase">Black Premium</span>
-                   </div>
-                </div>
-
-                <div className="pt-4 border-t border-white/5">
-                   <div className="flex flex-col">
-                        <span className="text-[8px] text-gray-500 font-black uppercase tracking-[0.2em]">Saldo Disponível</span>
-                        <span className={`text-2xl font-black ${cardData.balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          R$ {cardData.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </span>
-                   </div>
-                </div>
+              <div className="pt-2">
+                 <div className="flex flex-col mb-3">
+                    <span className="text-[7px] text-slate-500 font-black uppercase tracking-widest mb-1">Saldo em Conta Real</span>
+                    <span className={`text-xl md:text-2xl font-black ${cardData.balance >= 0 ? 'text-[#4A90FF]' : 'text-red-400'}`}>
+                      R$ {cardData.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-3">
+                    <div className="flex flex-col">
+                        <span className="text-[7px] text-slate-500 font-black uppercase tracking-widest">ID Matrícula</span>
+                        <span className="text-white text-[10px] font-bold">{userId}</span>
+                    </div>
+                    <div className="flex flex-col text-right">
+                        <span className="text-[7px] text-slate-500 font-black uppercase tracking-widest">Nível de Acesso</span>
+                        <span className="text-[#7A5CFA] text-[10px] font-black italic">PRIORITY BLACK</span>
+                    </div>
+                 </div>
               </div>
             </div>
 
-            <div className="p-4 bg-black/40 text-[8px] text-gray-600 font-bold uppercase tracking-widest flex justify-between">
-              <span>Banco INOVAFINANCE S.A.</span>
-              <span className="text-white/20 tracking-tighter">FUTURE TECH INC.</span>
+            <div className="p-4 bg-black/40 text-[7px] text-slate-600 font-black uppercase tracking-widest flex justify-between border-t border-white/5">
+              <span>INOVAFINANCE SOLUTIONS</span>
+              <span className="text-white/10">SECURE SYSTEM v2.5</span>
             </div>
           </div>
 
         </div>
       </div>
 
-      <div className="mt-12 max-w-sm text-center px-4">
-        <div className="bg-white/40 backdrop-blur-md p-6 rounded-3xl border border-white/60 shadow-lg">
-           <i className="fas fa-gem text-[#7A5CFA] text-2xl mb-3"></i>
-           <h4 className="font-black text-gray-800 text-sm">BENEFÍCIOS EXCLUSIVOS</h4>
-           <p className="text-gray-500 text-[11px] font-medium leading-relaxed mt-2">
-             Acesso a salas VIP, Cashback de 2.5% em todas as compras e suporte prioritário com IA em tempo real.
-           </p>
+      <div className="mt-8 md:mt-12 w-full max-w-[380px] px-4 space-y-4">
+        <div className="bg-white/5 backdrop-blur-md p-5 rounded-3xl border border-white/10 shadow-lg flex items-start gap-4 hover:bg-white/10 transition-colors">
+           <div className="w-10 h-10 rounded-xl bg-[#7A5CFA]/20 flex items-center justify-center text-[#7A5CFA]">
+              <i className="fas fa-crown"></i>
+           </div>
+           <div>
+              <h4 className="font-black text-white text-xs uppercase tracking-wider">Benefícios Inova Black</h4>
+              <p className="text-slate-500 text-[10px] font-bold leading-relaxed mt-1">
+                Taxa zero em transferências internacionais, cashback de 3% via IA e seguros de proteção tecnológica inclusos.
+              </p>
+           </div>
         </div>
+
+        <button className="w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] border border-white/10 transition-all active:scale-95">
+          Configurar Limites Digitais
+        </button>
       </div>
     </div>
   );
