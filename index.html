@@ -9,20 +9,58 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="manifest" href="/manifest.json">
     <style>
-      :root {
+      /* ===== THEME SYSTEM ===== */
+      :root, [data-theme="dark"] {
         --primary: #7A5AF5;
         --secondary: #4A90E2;
-        --bg-dark: #0a0f1d;
+        --bg-main: #0a0f1d;
+        --bg-card: rgba(255, 255, 255, 0.03);
+        --bg-card-hover: rgba(255, 255, 255, 0.06);
+        --bg-input: rgba(255, 255, 255, 0.05);
+        --bg-modal: rgba(10, 15, 29, 0.85);
+        --text-primary: #ffffff;
+        --text-secondary: #a0aec0;
+        --text-muted: #64748b;
+        --border-color: rgba(255, 255, 255, 0.08);
+        --border-hover: rgba(122, 90, 245, 0.3);
+        --shadow-color: rgba(0, 0, 0, 0.5);
+        --particles-purple: rgba(122, 90, 245, 0.15);
+        --particles-blue: rgba(74, 144, 226, 0.15);
+        --card-surface: rgba(255, 255, 255, 0.03);
+        --success: #22c55e;
+        --danger: #ef4444;
+      }
+
+      [data-theme="light"] {
+        --primary: #7A5AF5;
+        --secondary: #4A90E2;
+        --bg-main: #f1f5f9;
+        --bg-card: rgba(255, 255, 255, 0.9);
+        --bg-card-hover: rgba(255, 255, 255, 1);
+        --bg-input: #f8fafc;
+        --bg-modal: rgba(255, 255, 255, 0.95);
+        --text-primary: #1e293b;
+        --text-secondary: #475569;
+        --text-muted: #94a3b8;
+        --border-color: rgba(0, 0, 0, 0.08);
+        --border-hover: rgba(122, 90, 245, 0.4);
+        --shadow-color: rgba(0, 0, 0, 0.1);
+        --particles-purple: rgba(122, 90, 245, 0.08);
+        --particles-blue: rgba(74, 144, 226, 0.08);
+        --card-surface: rgba(255, 255, 255, 0.95);
+        --success: #16a34a;
+        --danger: #dc2626;
       }
 
       body {
         margin: 0;
         padding: 0;
         min-height: 100vh;
-        background: var(--bg-dark);
+        background: var(--bg-main);
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
         overflow-x: hidden;
-        color: white;
+        color: var(--text-primary);
+        transition: background 0.3s ease, color 0.3s ease;
       }
       
       /* Background Particles Animation - Purple & Blue Flow */
@@ -34,11 +72,12 @@
         height: 100%;
         z-index: -1;
         background: 
-          radial-gradient(circle at 10% 10%, rgba(122, 90, 245, 0.15) 0%, transparent 45%),
-          radial-gradient(circle at 90% 90%, rgba(74, 144, 226, 0.15) 0%, transparent 45%),
-          radial-gradient(circle at 50% 50%, rgba(122, 90, 245, 0.08) 0%, transparent 60%);
+          radial-gradient(circle at 10% 10%, var(--particles-purple) 0%, transparent 45%),
+          radial-gradient(circle at 90% 90%, var(--particles-blue) 0%, transparent 45%),
+          radial-gradient(circle at 50% 50%, var(--particles-purple) 0%, transparent 60%);
         filter: blur(60px);
         animation: drift 20s linear infinite alternate;
+        transition: background 0.3s ease;
       }
 
       @keyframes drift {
@@ -49,9 +88,9 @@
 
       /* Premium Tech Card System */
       .tech-card {
-        background: rgba(255, 255, 255, 0.03);
+        background: var(--bg-card);
         backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border-color);
         transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
         position: relative;
         overflow: hidden;
@@ -60,9 +99,9 @@
       
       .tech-card:hover {
         transform: translateY(-10px) scale(1.02);
-        background: rgba(255, 255, 255, 0.06);
-        border-color: rgba(122, 90, 245, 0.3);
-        box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5), 
+        background: var(--bg-card-hover);
+        border-color: var(--border-hover);
+        box-shadow: 0 30px 60px -12px var(--shadow-color), 
                     0 18px 36px -18px rgba(122, 90, 245, 0.3);
       }
 
@@ -112,9 +151,17 @@
       }
 
       .glass-modal {
-        background: rgba(10, 15, 29, 0.85);
+        background: var(--bg-modal);
         backdrop-filter: blur(30px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--border-color);
+      }
+
+      /* Theme Toggle Animation */
+      .theme-toggle {
+        transition: transform 0.3s ease;
+      }
+      .theme-toggle:hover {
+        transform: rotate(15deg);
       }
     </style>
 <script type="importmap">
