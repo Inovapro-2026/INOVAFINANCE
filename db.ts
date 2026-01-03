@@ -1,8 +1,8 @@
 
-import { Dexie, type Table } from 'dexie';
+import Dexie, { type Table } from 'dexie';
 import { Transaction, Goal, UserProfile } from './types';
 
-// Fix: Using named import for Dexie to ensure that the class and its inherited methods (like version) are correctly resolved in the subclass.
+// Fix: Using default import for Dexie to ensure that the class and its inherited methods (like version) are correctly resolved in the subclass.
 export class InovaFinanceDB extends Dexie {
   transactions!: Table<Transaction>;
   goals!: Table<Goal>;

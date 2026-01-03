@@ -50,7 +50,7 @@ const CardPage: React.FC<{ userId: string }> = ({ userId }) => {
 
   return (
     <div className="h-full flex flex-col items-center justify-center py-6 md:py-10 animate-fadeIn overflow-hidden">
-      <div className="text-center mb-8 md:mb-12">
+      <div className="text-center mb-10 flex-shrink-0">
         <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-full mb-4">
           <div className="w-2 h-2 bg-[#7A5CFA] rounded-full animate-pulse"></div>
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status: Cartão Ativo</span>
@@ -61,24 +61,24 @@ const CardPage: React.FC<{ userId: string }> = ({ userId }) => {
         <p className="text-slate-500 font-bold text-[10px] uppercase tracking-[0.3em] mt-2">Toque no cartão para girar</p>
       </div>
 
-      {/* Container fixo com aspect-ratio e perspectiva estável */}
+      {/* Container de Perspectiva Estabilizado */}
       <div 
-        className="relative w-full max-w-[380px] aspect-[1.58/1] cursor-pointer perspective-2000 px-4"
+        className="relative w-full max-w-[380px] aspect-[1.58/1] cursor-pointer perspective-container flex-shrink-0"
         onClick={() => setIsFlipped(!isFlipped)}
       >
         <div className={`card-inner ${isFlipped ? 'card-flip' : ''}`}>
           
           {/* FRENTE DO CARTÃO */}
-          <div className="card-face card-front bg-gradient-to-br from-[#1a1c2c] via-[#0a0f1d] to-[#000000] p-6 md:p-8 justify-between shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] border border-white/10 animate-shine">
+          <div className="card-face card-front bg-gradient-to-br from-[#1a1c2c] via-[#0a0f1d] to-[#000000] p-6 md:p-8 justify-between shadow-[0_40px_80px_-15px_rgba(0,0,0,0.8)] border border-white/10 animate-shine">
             <div className="flex justify-between items-start relative z-10">
               <div className="flex flex-col">
                 <span className="text-white text-base md:text-lg font-black tracking-tighter">INOVAFINANCE <span className="text-[#7A5CFA]">BANK</span></span>
                 <div className="w-8 h-1 mt-1 bg-[#7A5CFA] rounded-full"></div>
               </div>
-              {/* Chip Tech */}
-              <div className="w-12 h-9 bg-gradient-to-br from-yellow-100 via-yellow-500 to-yellow-700 rounded-md flex items-center justify-center overflow-hidden shadow-inner">
+              {/* Chip Tech Premium */}
+              <div className="w-12 h-9 bg-gradient-to-br from-yellow-100 via-yellow-500 to-yellow-700 rounded-md flex items-center justify-center overflow-hidden shadow-inner relative">
                  <div className="w-full h-full opacity-30 carbon-texture"></div>
-                 <div className="absolute grid grid-cols-2 gap-px w-8 h-6">
+                 <div className="absolute inset-0 grid grid-cols-2 gap-px p-1">
                     <div className="border border-black/10"></div>
                     <div className="border border-black/10"></div>
                     <div className="border border-black/10"></div>
@@ -88,84 +88,86 @@ const CardPage: React.FC<{ userId: string }> = ({ userId }) => {
             </div>
 
             <div className="space-y-6 relative z-10">
-              <div className="text-white text-xl md:text-2xl font-bold tracking-[0.18em] font-mono drop-shadow-lg">
+              <div className="text-white text-xl md:text-2xl font-bold tracking-[0.18em] font-mono drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
                 {cardData.number || '•••• •••• •••• ••••'}
               </div>
 
               <div className="flex justify-between items-end">
                 <div className="flex flex-col">
-                  <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Titular</span>
-                  <span className="text-white text-xs md:text-sm font-bold tracking-wider truncate max-w-[180px]">{cardData.name || 'CLIENTE PREMIUM'}</span>
+                  <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Titular</span>
+                  <span className="text-white text-xs md:text-sm font-bold tracking-wider truncate max-w-[180px] uppercase">{cardData.name || 'CLIENTE PREMIUM'}</span>
                 </div>
                 <div className="flex flex-col text-right">
-                  <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest">Exp</span>
-                  <span className="text-white text-xs md:text-sm font-bold">{cardData.validity || '00/00'}</span>
+                  <span className="text-[8px] text-slate-500 font-black uppercase tracking-widest mb-1">Exp</span>
+                  <span className="text-white text-xs md:text-sm font-bold tracking-widest">{cardData.validity || '00/00'}</span>
                 </div>
               </div>
             </div>
             
             {/* Texture Overlay */}
-            <div className="absolute inset-0 carbon-texture opacity-10 pointer-events-none"></div>
+            <div className="absolute inset-0 carbon-texture opacity-[0.07] pointer-events-none"></div>
           </div>
 
           {/* VERSO DO CARTÃO */}
-          <div className="card-face card-back bg-gradient-to-br from-[#0a0f1d] to-[#1a1c2c] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.7)] border border-white/5">
-            <div className="w-full h-12 bg-[#000000]/80 mt-6 md:mt-8"></div>
+          <div className="card-face card-back bg-gradient-to-br from-[#0a0f1d] to-[#1a1c2c] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.8)] border border-white/5">
+            <div className="w-full h-12 bg-[#000000]/90 mt-6 md:mt-8"></div>
             
-            <div className="px-6 md:px-8 pt-4 md:pt-6 flex-1 space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-1 h-9 bg-slate-800/50 rounded flex items-center justify-end px-4 text-white/40 font-mono text-xs tracking-widest border border-white/5">
-                  CVV {cardData.cvv}
+            <div className="px-6 md:px-8 pt-4 md:pt-6 flex-1 flex flex-col justify-between pb-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 h-10 bg-white/10 rounded flex items-center justify-end px-4 text-white/50 font-mono text-xs tracking-[0.3em] border border-white/5">
+                    CVV {cardData.cvv}
+                  </div>
+                  <div className="w-12 h-10 flex items-center justify-center opacity-60">
+                      <i className="fab fa-mastercard text-white text-4xl"></i>
+                  </div>
                 </div>
-                <div className="w-12 h-8 flex items-center justify-center opacity-40">
-                    <i className="fab fa-mastercard text-white text-3xl"></i>
+
+                <div className="pt-2">
+                   <div className="flex flex-col mb-4">
+                      <span className="text-[7px] text-slate-500 font-black uppercase tracking-widest mb-1">Saldo em Conta Real</span>
+                      <span className={`text-xl md:text-2xl font-black tracking-tight ${cardData.balance >= 0 ? 'text-[#4A90FF]' : 'text-red-400'}`}>
+                        R$ {cardData.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                   </div>
+                   
+                   <div className="grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
+                      <div className="flex flex-col">
+                          <span className="text-[7px] text-slate-500 font-black uppercase tracking-widest mb-1">ID Matrícula</span>
+                          <span className="text-white text-[10px] font-bold tracking-wider">{userId}</span>
+                      </div>
+                      <div className="flex flex-col text-right">
+                          <span className="text-[7px] text-slate-500 font-black uppercase tracking-widest mb-1">Nível de Acesso</span>
+                          <span className="text-[#7A5CFA] text-[10px] font-black italic tracking-wider">PRIORITY BLACK</span>
+                      </div>
+                   </div>
                 </div>
               </div>
 
-              <div className="pt-2">
-                 <div className="flex flex-col mb-3">
-                    <span className="text-[7px] text-slate-500 font-black uppercase tracking-widest mb-1">Saldo em Conta Real</span>
-                    <span className={`text-xl md:text-2xl font-black ${cardData.balance >= 0 ? 'text-[#4A90FF]' : 'text-red-400'}`}>
-                      R$ {cardData.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                 </div>
-                 
-                 <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-3">
-                    <div className="flex flex-col">
-                        <span className="text-[7px] text-slate-500 font-black uppercase tracking-widest">ID Matrícula</span>
-                        <span className="text-white text-[10px] font-bold">{userId}</span>
-                    </div>
-                    <div className="flex flex-col text-right">
-                        <span className="text-[7px] text-slate-500 font-black uppercase tracking-widest">Nível de Acesso</span>
-                        <span className="text-[#7A5CFA] text-[10px] font-black italic">PRIORITY BLACK</span>
-                    </div>
-                 </div>
+              <div className="text-[7px] text-slate-600 font-black uppercase tracking-[0.4em] flex justify-between pt-4 border-t border-white/5">
+                <span>INOVAFINANCE SECURE</span>
+                <span className="text-white/10 italic">ENCRYPTED L2</span>
               </div>
-            </div>
-
-            <div className="p-4 bg-black/40 text-[7px] text-slate-600 font-black uppercase tracking-widest flex justify-between border-t border-white/5">
-              <span>INOVAFINANCE SOLUTIONS</span>
-              <span className="text-white/10">SECURE SYSTEM v2.5</span>
             </div>
           </div>
 
         </div>
       </div>
 
-      <div className="mt-8 md:mt-12 w-full max-w-[380px] px-4 space-y-4">
-        <div className="bg-white/5 backdrop-blur-md p-5 rounded-3xl border border-white/10 shadow-lg flex items-start gap-4 hover:bg-white/10 transition-colors">
-           <div className="w-10 h-10 rounded-xl bg-[#7A5CFA]/20 flex items-center justify-center text-[#7A5CFA]">
+      <div className="mt-10 w-full max-w-[380px] px-4 space-y-4 flex-shrink-0">
+        <div className="bg-white/5 backdrop-blur-md p-5 rounded-[28px] border border-white/10 shadow-lg flex items-start gap-4 hover:bg-white/10 transition-all cursor-default">
+           <div className="w-10 h-10 rounded-2xl bg-[#7A5CFA]/20 flex items-center justify-center text-[#7A5CFA] shadow-inner">
               <i className="fas fa-crown"></i>
            </div>
            <div>
-              <h4 className="font-black text-white text-xs uppercase tracking-wider">Benefícios Inova Black</h4>
+              <h4 className="font-black text-white text-[11px] uppercase tracking-wider">Benefícios Inova Black</h4>
               <p className="text-slate-500 text-[10px] font-bold leading-relaxed mt-1">
-                Taxa zero em transferências internacionais, cashback de 3% via IA e seguros de proteção tecnológica inclusos.
+                Taxa zero em transferências internacionais, cashback inteligente de 3% e seguros globais inclusos.
               </p>
            </div>
         </div>
 
-        <button className="w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] border border-white/10 transition-all active:scale-95">
+        <button className="w-full py-4 bg-gradient-to-r from-white/5 to-white/[0.08] hover:from-[#7A5CFA]/20 hover:to-[#4A90FF]/20 text-white rounded-[20px] text-[10px] font-black uppercase tracking-[0.3em] border border-white/10 transition-all active:scale-[0.97]">
           Configurar Limites Digitais
         </button>
       </div>
