@@ -2,12 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-// Vite injects VITE_* vars at build-time. In some preview environments these can be missing,
-// so we keep a safe fallback to the project's publishable settings.
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://pahvovxnhqsmcnqncmys.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhaHZvdnhuaHFzbWNucW5jbXlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczNTEwNzUsImV4cCI6MjA4MjkyNzA3NX0.yJLgjM0TgOYkBUuE-fTm7qlpkvwqi6CSqPhFSXC1DgQ";
+const SUPABASE_URL = "https://pahvovxnhqsmcnqncmys.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhaHZvdnhuaHFzbWNucW5jbXlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjczNTEwNzUsImV4cCI6MjA4MjkyNzA3NX0.yJLgjM0TgOYkBUuE-fTm7qlpkvwqi6CSqPhFSXC1DgQ";
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
