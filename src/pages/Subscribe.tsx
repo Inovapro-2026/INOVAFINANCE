@@ -714,27 +714,56 @@ export default function Subscribe() {
                 </motion.div>
               )}
 
-              {/* Price card - hide in trial mode */}
+              {/* Price card - hide in trial mode, show FREE for admin affiliates */}
               {!isTrialMode && (
                 <GlassCard className="p-6 mb-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Assinatura mensal</p>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-bold">R$ {subscriptionAmount.toFixed(2).replace('.', ',')}</span>
-                        {affiliateCode && (
-                          <span className="text-sm text-muted-foreground line-through">R$ 5,00</span>
-                        )}
+                  {isAdminAffiliateLink ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Conta de Afiliado</p>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-bold text-emerald-400">GRÁTIS</span>
+                            <span className="text-sm text-muted-foreground line-through">R$ 49,99</span>
+                          </div>
+                        </div>
+                        <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center">
+                          <Users className="w-7 h-7 text-white" />
+                        </div>
                       </div>
-                    </div>
-                    <div className="w-14 h-14 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center">
-                      <QrCode className="w-7 h-7 text-primary-foreground" />
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
-                    <QrCode className="w-3 h-3" />
-                    Pagamento via PIX - Aprovação instantânea
-                  </p>
+                      <p className="text-xs text-emerald-400 mt-3 flex items-center gap-1 font-semibold">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Sem mensalidade • Ganhe 50% de comissão por indicação
+                      </p>
+                      <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                        <p className="text-xs text-amber-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          <span className="font-semibold">Importante:</span> Faça sua primeira venda em 7 dias para manter a conta ativa
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground">Assinatura mensal</p>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-bold">R$ {subscriptionAmount.toFixed(2).replace('.', ',')}</span>
+                            {affiliateCode && (
+                              <span className="text-sm text-muted-foreground line-through">R$ 49,99</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="w-14 h-14 bg-gradient-to-br from-primary to-accent rounded-xl flex items-center justify-center">
+                          <QrCode className="w-7 h-7 text-primary-foreground" />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-3 flex items-center gap-1">
+                        <QrCode className="w-3 h-3" />
+                        Pagamento via PIX - Aprovação instantânea
+                      </p>
+                    </>
+                  )}
                 </GlassCard>
               )}
 
@@ -1053,11 +1082,11 @@ export default function Subscribe() {
                   </div>
                   )}
 
-                  {/* Subscribe button - changes based on trial mode */}
+                  {/* Subscribe button - changes based on trial mode or admin affiliate */}
                   <Button
-                    onClick={isTrialMode ? handleTrialSignup : handleSubscribe}
+                    onClick={(isTrialMode || isAdminAffiliateLink) ? handleTrialSignup : handleSubscribe}
                     disabled={isLoading}
-                    className={`w-full h-14 text-lg font-semibold ${isTrialMode ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' : 'bg-gradient-to-r from-primary to-accent'} hover:opacity-90 transition-opacity mt-4`}
+                    className={`w-full h-14 text-lg font-semibold ${(isTrialMode || isAdminAffiliateLink) ? 'bg-gradient-to-r from-emerald-500 to-emerald-600' : 'bg-gradient-to-r from-primary to-accent'} hover:opacity-90 transition-opacity mt-4`}
                   >
                     {isLoading ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
@@ -1065,6 +1094,12 @@ export default function Subscribe() {
                       <>
                         <Clock className="w-5 h-5 mr-2" />
                         Criar conta grátis
+                        <ArrowRight className="w-5 h-5 ml-2" />
+                      </>
+                    ) : isAdminAffiliateLink ? (
+                      <>
+                        <Users className="w-5 h-5 mr-2" />
+                        Criar conta de afiliado
                         <ArrowRight className="w-5 h-5 ml-2" />
                       </>
                     ) : (
