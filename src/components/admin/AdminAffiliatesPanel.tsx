@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminAffiliateSettings } from "./AdminAffiliateSettings";
+import { AdminAffiliateLinkGenerator } from "./AdminAffiliateLinkGenerator";
 import { 
   Users, 
   Wallet, 
@@ -21,7 +22,8 @@ import {
   ArrowUpRight,
   History,
   Settings,
-  CreditCard
+  CreditCard,
+  Link2
 } from "lucide-react";
 
 interface AffiliateUser {
@@ -56,7 +58,7 @@ interface Withdrawal {
 }
 
 export function AdminAffiliatesPanel() {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("links");
   const [affiliates, setAffiliates] = useState<AffiliateUser[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
@@ -266,7 +268,11 @@ export function AdminAffiliatesPanel() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-slate-800/50 border border-slate-700">
+        <TabsList className="bg-slate-800/50 border border-slate-700 flex-wrap h-auto gap-1 p-1">
+          <TabsTrigger value="links" className="data-[state=active]:bg-primary">
+            <Link2 className="w-4 h-4 mr-2" />
+            Gerar Links
+          </TabsTrigger>
           <TabsTrigger value="overview" className="data-[state=active]:bg-primary">
             <Users className="w-4 h-4 mr-2" />
             Afiliados
@@ -284,6 +290,11 @@ export function AdminAffiliatesPanel() {
             Configurações
           </TabsTrigger>
         </TabsList>
+
+        {/* Links Generator - NEW TAB */}
+        <TabsContent value="links" className="mt-4">
+          <AdminAffiliateLinkGenerator />
+        </TabsContent>
 
         {/* Affiliates List */}
         <TabsContent value="overview" className="mt-4">

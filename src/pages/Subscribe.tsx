@@ -103,8 +103,11 @@ export default function Subscribe() {
 
     const code = searchParams.get('ref') || searchParams.get('affiliate');
     if (code) {
-      // Check if it's an admin-generated link (AFI-xxx format)
-      if (code.startsWith('AFI-')) {
+      // Save ref to localStorage for persistence
+      localStorage.setItem('inovafinance_affiliate_ref', code);
+      
+      // Check if it's an admin-generated link (AFI-xxx or INV-xxx format)
+      if (code.startsWith('AFI-') || code.startsWith('INV-')) {
         setAffiliateFromUrl(true);
         setManualAffiliateCode(code);
         validateAdminAffiliateLink(code);
@@ -115,6 +118,23 @@ export default function Subscribe() {
           setAffiliateFromUrl(true);
           setManualAffiliateCode(code);
           validateAffiliateCode(numCode, true);
+        }
+      }
+    } else {
+      // Check localStorage for saved affiliate ref
+      const savedRef = localStorage.getItem('inovafinance_affiliate_ref');
+      if (savedRef) {
+        if (savedRef.startsWith('AFI-') || savedRef.startsWith('INV-')) {
+          setAffiliateFromUrl(true);
+          setManualAffiliateCode(savedRef);
+          validateAdminAffiliateLink(savedRef);
+        } else {
+          const numCode = parseInt(savedRef, 10);
+          if (!isNaN(numCode)) {
+            setAffiliateFromUrl(true);
+            setManualAffiliateCode(savedRef);
+            validateAffiliateCode(numCode, true);
+          }
         }
       }
     }
@@ -198,23 +218,29 @@ export default function Subscribe() {
 
       if (data?.value) {
         const links = JSON.parse(data.value);
-        const link = links.find((l: any) => l.affiliate_code === code && l.is_active);
+        const link = links.find((l: any) => 
+          l.affiliate_code === code && 
+          l.is_active && 
+          !l.is_blocked
+        );
 
         if (link) {
           setIsAdminAffiliateLink(true);
           setAdminAffiliateLinkCode(code);
-          setAffiliateName('INOVAFINANCE Partner');
+          // Use affiliate name if available, otherwise show generic partner message
+          const partnerName = link.affiliate_name || 'um parceiro INOVAFINANCE';
+          setAffiliateName(partnerName);
           // Apply affiliate price
           const newAmount = affiliatePrice - couponDiscount;
           setSubscriptionAmount(Math.max(0.01, newAmount));
           toast({
-            title: "Link de parceiro válido!",
-            description: "Ao se cadastrar, você terá acesso ao programa de afiliados.",
+            title: "Você foi indicado por um parceiro INOVAFINANCE",
+            description: `Indicado por: ${partnerName}. Ao se cadastrar, você terá acesso ao programa de afiliados.`,
           });
         } else {
           toast({
             title: "Link inválido",
-            description: "Este link de afiliado não existe ou está inativo.",
+            description: "Este link de afiliado não existe, está inativo ou bloqueado.",
             variant: "destructive"
           });
         }
