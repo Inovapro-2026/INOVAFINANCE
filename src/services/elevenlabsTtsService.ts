@@ -82,7 +82,7 @@ function cleanTextForTts(text: string): string {
 }
 
 /**
- * Speak text using ElevenLabs TTS
+ * Speak text using ElevenLabs TTS with fallback to native TTS
  */
 export async function speakWithElevenLabs(text: string): Promise<void> {
   const cleanText = cleanTextForTts(text);
@@ -104,10 +104,16 @@ export async function speakWithElevenLabs(text: string): Promise<void> {
 
     if (error) {
       console.error('TTS Error:', error);
-      throw error;
+      // Fallback to native TTS
+      return speakWithNativeTts(cleanText);
     }
 
     if (!data?.audio) {
+      // Check for quota exceeded or other API errors
+      if (data?.error) {
+        console.warn('ElevenLabs error, using native TTS:', data.error);
+        return speakWithNativeTts(cleanText);
+      }
       throw new Error('No audio data received');
     }
 
@@ -117,9 +123,50 @@ export async function speakWithElevenLabs(text: string): Promise<void> {
     
     return playAudioExclusively(audio);
   } catch (error) {
-    console.error('TTS Error:', error);
-    throw error;
+    console.error('TTS Error, falling back to native:', error);
+    // Fallback to native browser TTS
+    return speakWithNativeTts(cleanText);
   }
+}
+
+/**
+ * Fallback native browser TTS for Brazilian Portuguese
+ */
+function speakWithNativeTts(text: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (!window.speechSynthesis) {
+      console.error('Native TTS not supported');
+      resolve();
+      return;
+    }
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'pt-BR';
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    // Try to find a Brazilian Portuguese voice
+    const voices = window.speechSynthesis.getVoices();
+    const ptBrVoice = voices.find(v => v.lang === 'pt-BR') || 
+                      voices.find(v => v.lang.startsWith('pt')) ||
+                      voices[0];
+    
+    if (ptBrVoice) {
+      utterance.voice = ptBrVoice;
+    }
+
+    utterance.onend = () => resolve();
+    utterance.onerror = (e) => {
+      console.error('Native TTS error:', e);
+      resolve(); // Resolve anyway to not block
+    };
+
+    window.speechSynthesis.speak(utterance);
+  });
 }
 
 /**
@@ -127,11 +174,15 @@ export async function speakWithElevenLabs(text: string): Promise<void> {
  */
 export function stopElevenLabsSpeaking(): void {
   stopAllAudio();
+  // Also stop native TTS if running
+  if (window.speechSynthesis) {
+    window.speechSynthesis.cancel();
+  }
 }
 
 /**
  * Check if currently speaking
  */
 export function isElevenLabsSpeaking(): boolean {
-  return isGlobalAudioPlaying();
+  return isGlobalAudioPlaying() || (window.speechSynthesis?.speaking ?? false);
 }
