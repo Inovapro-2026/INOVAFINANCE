@@ -1,13 +1,8 @@
 // Production domain configuration
-// Update this to your VPS/production domain
-export const PRODUCTION_DOMAIN = "https://inovafinance.online";
+// Using the Lovable preview domain for affiliate links
+export const PRODUCTION_DOMAIN = "https://40fcad02-1f4c-44c7-b7e6-1c89eb4ee1ae.lovableproject.com";
 
 // Get the base URL for affiliate links
 export const getAffiliateBaseUrl = (): string => {
-  // In production or when configured, use the production domain
-  // Otherwise fallback to current origin for local development
-  if (import.meta.env.PROD || PRODUCTION_DOMAIN) {
-    return PRODUCTION_DOMAIN;
-  }
-  return window.location.origin;
+  return PRODUCTION_DOMAIN;
 };
