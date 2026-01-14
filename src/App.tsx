@@ -20,6 +20,7 @@ import AI from "./pages/AI";
 import Planner from "./pages/Planner";
 import Statement from "./pages/Statement";
 import Affiliates from "./pages/Affiliates";
+import AffiliatePanel from "./pages/AffiliatePanel";
 import Support from "./pages/Support";
 import Subscription from "./pages/Subscription";
 import Admin from "./pages/Admin";
