@@ -65,7 +65,10 @@ export function ElevenLabsSettings() {
         // Mask the key for display
         setApiKey("••••••••" + data.value.slice(-8));
         // Load usage from API with the saved key
-        loadUsageFromApiWithKey(data.value);
+        await loadUsageFromApiWithKey(data.value);
+      } else {
+        // No key saved, try to load usage anyway (will show error state)
+        await loadUsageFromApi();
       }
     } catch (error) {
       console.error("Error loading settings:", error);
@@ -73,7 +76,56 @@ export function ElevenLabsSettings() {
   };
 
   const loadUsageFromApi = async () => {
-    // Will be called after loading saved key
+    // Try to load usage using the saved key from database
+    try {
+      setIsLoading(true);
+      
+      // First get the key from system_settings
+      const { data: keyData } = await supabase
+        .from("system_settings")
+        .select("value")
+        .eq("key", "eleven_api_key")
+        .maybeSingle();
+      
+      if (keyData?.value) {
+        const { data, error } = await supabase.functions.invoke("test-elevenlabs-key", {
+          body: { apiKey: keyData.value, testVoice: false }
+        });
+
+        if (data?.success && data.usage) {
+          setUsage(data.usage);
+          setMonthlyUsage(data.usage.used);
+        } else if (data?.error) {
+          // If there's an error (quota exceeded, etc), try to parse remaining from error
+          console.warn("ElevenLabs usage check failed:", data.error);
+          // Show estimated usage from the error if available
+          if (data.details) {
+            try {
+              const details = JSON.parse(data.details);
+              if (details?.detail?.message) {
+                const match = details.detail.message.match(/(\d+)\s*credits?\s*remaining/i);
+                if (match) {
+                  const remaining = parseInt(match[1], 10);
+                  const limit = 10000; // Default free tier
+                  setUsage({
+                    used: limit - remaining,
+                    limit: limit,
+                    remaining: remaining
+                  });
+                  setMonthlyUsage(limit - remaining);
+                }
+              }
+            } catch {
+              // ignore parse error
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error loading usage from API:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const loadUsageFromApiWithKey = async (key: string) => {
@@ -85,6 +137,27 @@ export function ElevenLabsSettings() {
 
       if (data?.success && data.usage) {
         setUsage(data.usage);
+        setMonthlyUsage(data.usage.used);
+      } else if (data?.error && data.details) {
+        // Parse remaining credits from error message
+        try {
+          const details = typeof data.details === 'string' ? JSON.parse(data.details) : data.details;
+          if (details?.detail?.message) {
+            const match = details.detail.message.match(/(\d+)\s*credits?\s*remaining/i);
+            if (match) {
+              const remaining = parseInt(match[1], 10);
+              const limit = 10000;
+              setUsage({
+                used: limit - remaining,
+                limit: limit,
+                remaining: remaining
+              });
+              setMonthlyUsage(limit - remaining);
+            }
+          }
+        } catch {
+          // ignore
+        }
       }
     } catch (error) {
       console.error("Error loading usage from API:", error);
