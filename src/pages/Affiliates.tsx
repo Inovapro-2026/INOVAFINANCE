@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { AffiliateWallet } from "@/components/AffiliateWallet";
+import { getAffiliateBaseUrl } from "@/lib/config";
 
 const statusConfig = {
     pending: { label: "Pendente", icon: Clock, color: "text-amber-400", bg: "bg-amber-400/10", border: "border-amber-400/20" },
@@ -67,12 +68,13 @@ export default function Affiliates() {
     };
 
     const shareInvite = () => {
+        const baseUrl = getAffiliateBaseUrl();
         const text = `Vem pro INOVAFINANCE! Use meu código ${user?.userId} ao se cadastrar e ganhe benefícios exclusivos.`;
         if (navigator.share) {
             navigator.share({
                 title: 'INOVAFINANCE',
                 text: text,
-                url: window.location.origin
+                url: baseUrl
             });
         } else {
             copyCode();
@@ -148,7 +150,7 @@ export default function Affiliates() {
                     </label>
                     <div className="mt-2 bg-muted/30 border border-border rounded-xl px-4 py-3">
                         <p className="text-sm font-mono text-primary break-all">
-                            {window.location.origin}/subscribe?ref={user?.userId}
+                            {getAffiliateBaseUrl()}/subscribe?ref={user?.userId}
                         </p>
                     </div>
                     <div className="flex gap-2 mt-4">
@@ -156,7 +158,7 @@ export default function Affiliates() {
                             variant="outline" 
                             className="flex-1" 
                             onClick={() => {
-                                navigator.clipboard.writeText(`${window.location.origin}/subscribe?ref=${user?.userId}`);
+                                navigator.clipboard.writeText(`${getAffiliateBaseUrl()}/subscribe?ref=${user?.userId}`);
                                 toast.success("Link copiado!");
                             }}
                         >
@@ -166,7 +168,7 @@ export default function Affiliates() {
                         <Button 
                             className="flex-1 bg-green-600 hover:bg-green-700" 
                             onClick={() => {
-                                const url = `${window.location.origin}/subscribe?ref=${user?.userId}`;
+                                const url = `${getAffiliateBaseUrl()}/subscribe?ref=${user?.userId}`;
                                 const text = `Vem pro INOVAFINANCE! Acesse meu link exclusivo e ganhe desconto na assinatura: ${url}`;
                                 window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
                             }}

@@ -21,6 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getAffiliateBaseUrl } from "@/lib/config";
 
 interface AffiliateLink {
   id: string;
@@ -39,8 +40,8 @@ export function AdminAffiliateLinkGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Base URL for affiliate links
-  const baseUrl = window.location.origin;
+  // Base URL for affiliate links - uses production domain
+  const baseUrl = getAffiliateBaseUrl();
 
   useEffect(() => {
     loadLinks();
