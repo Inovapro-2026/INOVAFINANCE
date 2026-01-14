@@ -490,16 +490,50 @@ export default function AI() {
           } else if (args.amount > realDebitBalance && user.hasCreditCard && canInstallment) {
             // Exceeds both but can installment
             speak(`Gasto de ${args.amount} reais. Débito insuficiente e excede o crédito. Você pode parcelar em ${minInstallments} vezes ou mais.`);
+        } else {
+          // Excited response for good balance
+          if (realDebitBalance > 500) {
+            speak(`Que ótimo! Gasto de ${args.amount} reais em ${args.category}. Seu saldo está excelente, com ${realDebitBalance.toFixed(0)} reais disponíveis! Confirma?`);
           } else {
             speak(`Registrar gasto de ${args.amount} reais em ${args.category}? Escolha débito ou crédito.`);
           }
-        } else {
-          speak(`Registrar ganho de ${args.amount} reais em ${args.category}?`);
         }
       } else {
-        setStatusText('Pronta para ajudar');
-        speak(data.message);
+        // Income - always positive
+        speak(`Maravilha! Registrar ganho de ${args.amount} reais em ${args.category}? Isso vai melhorar seu saldo!`);
       }
+    } else {
+      setStatusText('Pronta para ajudar');
+      
+      // Enhance response with enthusiasm if balance is good
+      const context = await getFinancialContext();
+      let responseMessage = data.message;
+      
+      // Add animated prefix for balance-related queries when balance > 500
+      if (context.debitBalance > 500) {
+        const balanceKeywords = ['saldo', 'dinheiro', 'quanto tenho', 'quanto eu tenho', 'meu dinheiro', 'disponível'];
+        const isBalanceQuery = balanceKeywords.some(keyword => 
+          data.message?.toLowerCase().includes(keyword) || 
+          responseMessage?.toLowerCase().includes('saldo') ||
+          responseMessage?.toLowerCase().includes('disponível')
+        );
+        
+        if (isBalanceQuery && !responseMessage?.includes('Parabéns') && !responseMessage?.includes('Excelente')) {
+          // Add enthusiastic prefix for good balance
+          const enthusiasticPrefixes = [
+            'Ótimas notícias! ',
+            'Que maravilha! ',
+            'Parabéns! ',
+            'Excelente! ',
+            'Fantástico! '
+          ];
+          const randomPrefix = enthusiasticPrefixes[Math.floor(Math.random() * enthusiasticPrefixes.length)];
+          responseMessage = randomPrefix + responseMessage;
+        }
+      }
+      
+      speak(responseMessage);
+    }
     } catch (error) {
       console.error('Error calling AI:', error);
       setStatusText('Erro ao processar');
