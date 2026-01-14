@@ -178,6 +178,7 @@ export default function AI() {
   const [installments, setInstallments] = useState(1);
   const [showInstallments, setShowInstallments] = useState(false);
   const [displayBalance, setDisplayBalance] = useState<{ debit: number; credit: number } | null>(null);
+  const [balanceUpdated, setBalanceUpdated] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   // Load balance on mount and after transactions
@@ -598,13 +599,16 @@ export default function AI() {
 
       await refreshUser();
 
-      // Update displayed balance
+      // Update displayed balance with animation trigger
       const { debitBalance } = await calculateBalance(user.userId, user.initialBalance);
       const creditAvailable = (user.creditLimit || 0) - (user.creditUsed || 0);
       setDisplayBalance({
         debit: Math.max(0, debitBalance),
         credit: Math.max(0, creditAvailable)
       });
+      // Trigger balance update animation
+      setBalanceUpdated(true);
+      setTimeout(() => setBalanceUpdated(false), 1500);
 
       const methodText = pendingTransaction.type === 'expense'
         ? pendingTransaction.paymentMethod === 'credit' ? ' no crédito' : ' no débito'
@@ -819,31 +823,78 @@ export default function AI() {
           {displayBalance && (
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
+              animate={{ 
+                opacity: 1, 
+                scale: balanceUpdated ? [1, 1.05, 1] : 1,
+              }}
+              transition={{ 
+                duration: balanceUpdated ? 0.5 : 0.3,
+                ease: "easeOut"
+              }}
               className="mb-8 flex gap-4"
             >
               {/* Debit Balance */}
-              <div className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl px-5 py-3 text-center min-w-[120px]">
+              <motion.div 
+                className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl px-5 py-3 text-center min-w-[120px] relative overflow-hidden"
+                animate={balanceUpdated ? {
+                  boxShadow: ['0 0 0 rgba(16,185,129,0)', '0 0 20px rgba(16,185,129,0.5)', '0 0 0 rgba(16,185,129,0)']
+                } : {}}
+                transition={{ duration: 1 }}
+              >
+                {balanceUpdated && (
+                  <motion.div
+                    className="absolute inset-0 bg-emerald-400/20"
+                    initial={{ opacity: 1 }}
+                    animate={{ opacity: 0 }}
+                    transition={{ duration: 1 }}
+                  />
+                )}
                 <div className="flex items-center justify-center gap-1.5 mb-1">
                   <Wallet className="w-4 h-4 text-emerald-400" />
                   <span className="text-xs text-muted-foreground">Débito</span>
                 </div>
-                <p className="text-lg font-semibold text-emerald-400">
+                <motion.p 
+                  className="text-lg font-semibold text-emerald-400"
+                  key={displayBalance.debit}
+                  initial={balanceUpdated ? { scale: 1.2, color: '#34d399' } : false}
+                  animate={{ scale: 1, color: '#34d399' }}
+                  transition={{ duration: 0.3 }}
+                >
                   R$ {displayBalance.debit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
+                </motion.p>
+              </motion.div>
 
               {/* Credit Available */}
               {user?.hasCreditCard && (
-                <div className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl px-5 py-3 text-center min-w-[120px]">
+                <motion.div 
+                  className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-2xl px-5 py-3 text-center min-w-[120px] relative overflow-hidden"
+                  animate={balanceUpdated ? {
+                    boxShadow: ['0 0 0 rgba(59,130,246,0)', '0 0 20px rgba(59,130,246,0.5)', '0 0 0 rgba(59,130,246,0)']
+                  } : {}}
+                  transition={{ duration: 1 }}
+                >
+                  {balanceUpdated && (
+                    <motion.div
+                      className="absolute inset-0 bg-blue-400/20"
+                      initial={{ opacity: 1 }}
+                      animate={{ opacity: 0 }}
+                      transition={{ duration: 1 }}
+                    />
+                  )}
                   <div className="flex items-center justify-center gap-1.5 mb-1">
                     <CreditCard className="w-4 h-4 text-blue-400" />
                     <span className="text-xs text-muted-foreground">Crédito</span>
                   </div>
-                  <p className="text-lg font-semibold text-blue-400">
+                  <motion.p 
+                    className="text-lg font-semibold text-blue-400"
+                    key={displayBalance.credit}
+                    initial={balanceUpdated ? { scale: 1.2, color: '#60a5fa' } : false}
+                    animate={{ scale: 1, color: '#60a5fa' }}
+                    transition={{ duration: 0.3 }}
+                  >
                     R$ {displayBalance.credit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                </div>
+                  </motion.p>
+                </motion.div>
               )}
             </motion.div>
           )}
