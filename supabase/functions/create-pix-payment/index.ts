@@ -238,6 +238,10 @@ serve(async (req) => {
       const emailBase = cleanCpf || phone.replace(/\D/g, '');
       payerEmail = `${emailBase}@inovabank.com`;
     }
+    
+    // For PIX payments in production, CPF is usually required
+    // Use a placeholder if not available (for renewals without CPF)
+    const payerCpf = cleanCpf || '00000000000';
 
     // Create PIX payment in Mercado Pago
     const pixPaymentData: Record<string, unknown> = {
@@ -250,18 +254,16 @@ serve(async (req) => {
         email: payerEmail,
         first_name: fullName.split(' ')[0],
         last_name: fullName.split(' ').slice(1).join(' ') || 'Cliente',
-        ...(cleanCpf ? {
-          identification: {
-            type: 'CPF',
-            number: cleanCpf,
-          },
-        } : {}),
+        identification: {
+          type: 'CPF',
+          number: payerCpf,
+        },
       },
       notification_url: `${SUPABASE_URL}/functions/v1/mp-webhook`,
       external_reference: userTempId,
     };
 
-    console.log('Creating PIX payment:', { userTempId, amount, isTestMode });
+    console.log('Creating PIX payment:', { userTempId, amount, isTestMode, hasValidCpf: !!cleanCpf });
 
     const mpResponse = await fetch('https://api.mercadopago.com/v1/payments', {
       method: 'POST',
@@ -277,7 +279,16 @@ serve(async (req) => {
 
     if (!mpResponse.ok) {
       console.error('Mercado Pago API error:', JSON.stringify(mpData, null, 2));
-      throw new Error(mpData.message || 'Erro ao criar pagamento PIX no Mercado Pago');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Erro ao criar pagamento PIX';
+      if (mpData.code === 'PA_UNAUTHORIZED_RESULT_FROM_POLICIES') {
+        errorMessage = 'Erro de autorização no Mercado Pago. Verifique as permissões da conta.';
+      } else if (mpData.message) {
+        errorMessage = mpData.message;
+      }
+      
+      throw new Error(errorMessage);
     }
 
     console.log('PIX payment created:', mpData.id);
