@@ -82,8 +82,16 @@ serve(async (req) => {
       }
     }
     
-    // Validate required fields
-    if (!fullName || !phone || !cpf) {
+    // Validate required fields - for renewals, CPF is optional if we have email
+    if (!fullName || !phone) {
+      return new Response(
+        JSON.stringify({ error: 'Campos obrigatórios: nome e telefone' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // For new registrations (not renewal), CPF is required
+    if (!isRenewal && !cpf) {
       return new Response(
         JSON.stringify({ error: 'Campos obrigatórios: nome, telefone e CPF' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -195,8 +203,8 @@ serve(async (req) => {
       throw new Error('Erro ao criar registro de pagamento');
     }
 
-    // Clean CPF - remove formatting
-    const cleanCpf = cpf.replace(/\D/g, '');
+    // Clean CPF - remove formatting (handle null/empty)
+    const cleanCpf = cpf ? cpf.replace(/\D/g, '') : '';
 
     // Check if using test credentials (starts with TEST-)
     const isTestMode = MP_ACCESS_TOKEN.startsWith('TEST-');
@@ -227,11 +235,13 @@ serve(async (req) => {
       payerEmail = String(testUser.email);
     } else if (!isValidEmail(payerEmail)) {
       // Fallback for prod: generate a safe, valid email if user didn't provide one
-      payerEmail = `${cleanCpf}@inovabank.com`;
+      // Use phone number if no CPF available
+      const emailBase = cleanCpf || phone.replace(/\D/g, '');
+      payerEmail = `${emailBase}@inovabank.com`;
     }
 
     // Create PIX payment in Mercado Pago
-    const pixPaymentData = {
+    const pixPaymentData: Record<string, unknown> = {
       transaction_amount: amount,
       description: validAffiliateCode 
         ? `Assinatura INOVABANK - Indicação #${validAffiliateCode}` 
@@ -241,10 +251,12 @@ serve(async (req) => {
         email: payerEmail,
         first_name: fullName.split(' ')[0],
         last_name: fullName.split(' ').slice(1).join(' ') || 'Cliente',
-        identification: {
-          type: 'CPF',
-          number: cleanCpf,
-        },
+        ...(cleanCpf ? {
+          identification: {
+            type: 'CPF',
+            number: cleanCpf,
+          },
+        } : {}),
       },
       notification_url: `${SUPABASE_URL}/functions/v1/mp-webhook`,
       external_reference: userTempId,
