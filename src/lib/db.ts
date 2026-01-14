@@ -8,6 +8,7 @@ export interface Profile {
   fullName: string;
   email?: string;
   phone?: string;
+  cpf?: string;
   initialBalance: number;
   hasCreditCard: boolean;
   creditLimit: number;
@@ -63,6 +64,7 @@ export async function getProfile(matricula: number): Promise<Profile | undefined
     fullName: data.full_name || '',
     email: data.email || undefined,
     phone: data.phone || undefined,
+    cpf: data.cpf || undefined,
     initialBalance: Number(data.initial_balance) || 0,
     hasCreditCard: data.has_credit_card || false,
     creditLimit: Number(data.credit_limit) || 0,
@@ -111,6 +113,7 @@ export async function updateProfile(matricula: number, updates: Partial<Profile>
   if (updates.fullName !== undefined) updateData.full_name = updates.fullName;
   if (updates.email !== undefined) updateData.email = updates.email;
   if (updates.phone !== undefined) updateData.phone = updates.phone;
+  if (updates.cpf !== undefined) updateData.cpf = updates.cpf;
   if (updates.initialBalance !== undefined) updateData.initial_balance = updates.initialBalance;
   if (updates.hasCreditCard !== undefined) updateData.has_credit_card = updates.hasCreditCard;
   if (updates.creditLimit !== undefined) updateData.credit_limit = updates.creditLimit;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Target, Trophy, Calendar, X, User, Mail, Phone, CreditCard, Wallet, Lock, Edit3, Check, Hash, DollarSign, CalendarDays, LogOut, MessageCircle, Receipt, Banknote, Crown } from 'lucide-react';
+import { Plus, Target, Trophy, Calendar, X, User, Mail, Phone, CreditCard, Wallet, Lock, Edit3, Check, Hash, DollarSign, CalendarDays, LogOut, MessageCircle, Receipt, Banknote, Crown, FileText } from 'lucide-react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,10 +23,12 @@ export default function Goals() {
   const [editingBalance, setEditingBalance] = useState(false);
   const [editingSalary, setEditingSalary] = useState(false);
   const [editingSalaryDay, setEditingSalaryDay] = useState(false);
+  const [editingCpf, setEditingCpf] = useState(false);
   const [newName, setNewName] = useState('');
   const [newBalance, setNewBalance] = useState('');
   const [newSalary, setNewSalary] = useState('');
   const [newSalaryDay, setNewSalaryDay] = useState('');
+  const [newCpf, setNewCpf] = useState('');
   const [salaryInfo, setSalaryInfo] = useState<{ salaryAmount: number; salaryDay: number } | null>(null);
   const [newGoal, setNewGoal] = useState({
     title: '',
@@ -50,6 +52,7 @@ export default function Goals() {
       loadSalaryInfo();
       setNewName(user.fullName || '');
       setNewBalance(user.initialBalance?.toString() || '0');
+      setNewCpf(user.cpf || '');
     }
   }, [user]);
 
@@ -88,6 +91,27 @@ export default function Goals() {
     await refreshUser();
     setEditingBalance(false);
     toast.success('Saldo atualizado!');
+  };
+
+  const formatCPF = (value: string) => {
+    const numbers = value.replace(/\D/g, '').slice(0, 11);
+    return numbers
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d)/, '$1.$2')
+      .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+  };
+
+  const handleSaveCpf = async () => {
+    if (!user) return;
+    const cleanCpf = newCpf.replace(/\D/g, '');
+    if (cleanCpf.length !== 11) {
+      toast.error('CPF inválido. Deve ter 11 dígitos.');
+      return;
+    }
+    await updateProfile(user.userId, { cpf: formatCPF(cleanCpf) });
+    await refreshUser();
+    setEditingCpf(false);
+    toast.success('CPF atualizado!');
   };
 
   const handleSaveSalary = async () => {
@@ -290,6 +314,53 @@ export default function Goals() {
                 <p className="font-medium">{formatPhone(user?.phone)}</p>
               </div>
               <Lock className="w-5 h-5 text-muted-foreground" />
+            </div>
+          </GlassCard>
+
+          {/* CPF - Editável */}
+          <GlassCard className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                <FileText className="w-6 h-6 text-amber-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground mb-1">CPF</p>
+                {editingCpf ? (
+                  <Input
+                    value={newCpf}
+                    onChange={(e) => setNewCpf(formatCPF(e.target.value))}
+                    placeholder="000.000.000-00"
+                    className="h-8 bg-muted/50 border-primary w-40"
+                    autoFocus
+                    maxLength={14}
+                  />
+                ) : (
+                  <p className="font-medium">{user?.cpf || 'Não informado'}</p>
+                )}
+              </div>
+              {editingCpf ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditingCpf(false)}
+                    className="p-2 rounded-lg bg-muted hover:bg-muted/80"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleSaveCpf}
+                    className="p-2 rounded-lg bg-primary text-primary-foreground"
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setEditingCpf(true)}
+                  className="p-2 rounded-lg bg-muted hover:bg-muted/80"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </GlassCard>
 
