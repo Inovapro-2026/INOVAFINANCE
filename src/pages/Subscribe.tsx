@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { speakNative, stopNativeSpeaking } from '@/services/nativeTtsService';
 
 type Step = 'form' | 'processing' | 'pix' | 'success' | 'error' | 'trial_success';
-type FormStep = 'name' | 'email' | 'phone' | 'cpf' | 'salary' | 'creditCard' | 'affiliate' | 'coupon' | 'pixKey' | 'review';
+type FormStep = 'name' | 'email' | 'phone' | 'cpf' | 'salary' | 'balances' | 'creditCard' | 'affiliate' | 'coupon' | 'pixKey' | 'review';
 
 interface PixData {
   qrCode: string | null;
@@ -30,6 +30,7 @@ const STEP_EXPLANATIONS: Record<FormStep, string> = {
   phone: 'Digite seu número de telefone com DDD. Usaremos para contato importante sobre sua conta.',
   cpf: 'Agora digite seu CPF. Este documento é necessário para verificação de identidade.',
   salary: 'Informe seu salário mensal e o dia do pagamento. Isso nos ajuda a organizar seu planejamento financeiro.',
+  balances: 'Informe seu saldo atual em conta débito e crédito. Isso nos ajuda a calcular seu saldo total.',
   creditCard: 'Você possui cartão de crédito? Se sim, ative a opção e informe o limite e dia de vencimento.',
   affiliate: 'Tem um código de indicação? Digite aqui para ganhar desconto especial.',
   coupon: 'Possui cupom de desconto? Digite o código para aplicar.',
@@ -61,6 +62,10 @@ export default function Subscribe() {
   const [salaryDay, setSalaryDay] = useState('5');
   const [advanceAmount, setAdvanceAmount] = useState('');
   const [advanceDay, setAdvanceDay] = useState('');
+  
+  // Current balances
+  const [currentDebitBalance, setCurrentDebitBalance] = useState('');
+  const [currentCreditBalance, setCurrentCreditBalance] = useState('');
 
   // Coupon code
   const [couponCode, setCouponCode] = useState('');
@@ -476,7 +481,7 @@ export default function Subscribe() {
 
   // Get form steps based on context
   const getFormSteps = (): FormStep[] => {
-    const steps: FormStep[] = ['name', 'email', 'phone', 'cpf', 'salary', 'creditCard'];
+    const steps: FormStep[] = ['name', 'email', 'phone', 'cpf', 'salary', 'balances', 'creditCard'];
     
     if (isAdminAffiliateLink) {
       steps.push('pixKey');
@@ -595,7 +600,8 @@ export default function Subscribe() {
           email: email.trim() || null,
           phone: phone.trim(),
           cpf: cpf.replace(/\D/g, ''),
-          initial_balance: 0,
+          initial_balance: parseCurrency(currentDebitBalance),
+          credit_used: parseCurrency(currentCreditBalance),
           has_credit_card: hasCreditCard,
           credit_limit: hasCreditCard ? parseCurrency(creditLimit) : 0,
           credit_due_day: hasCreditCard ? parseInt(creditDueDay) : 5,
@@ -906,6 +912,44 @@ export default function Subscribe() {
             </div>
           )}
 
+          {formStep === 'balances' && (
+            <div className="space-y-4">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Wallet className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-lg font-semibold">Saldos atuais</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Informe seus saldos em conta
+                </p>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-center block text-sm">Saldo atual em Débito (conta corrente)</Label>
+                  <Input
+                    value={currentDebitBalance}
+                    onChange={(e) => setCurrentDebitBalance(formatCurrency(e.target.value))}
+                    placeholder="0,00"
+                    className="bg-background/50 text-center text-lg h-14"
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-center block text-sm">Saldo atual em Crédito (usado no cartão)</Label>
+                  <Input
+                    value={currentCreditBalance}
+                    onChange={(e) => setCurrentCreditBalance(formatCurrency(e.target.value))}
+                    placeholder="0,00"
+                    className="bg-background/50 text-center text-lg h-14"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                O saldo total será a soma do débito com o crédito disponível
+              </p>
+            </div>
+          )}
+
           {formStep === 'creditCard' && (
             <div className="space-y-4">
               <div className="text-center mb-6">
@@ -1170,6 +1214,18 @@ export default function Subscribe() {
                   <span className="text-sm text-muted-foreground">Salário</span>
                   <span className="text-sm font-medium">
                     {salaryAmount ? `R$ ${salaryAmount}` : 'Não informado'}
+                  </span>
+                </div>
+                <div className="flex justify-between p-3 bg-background/30 rounded-lg">
+                  <span className="text-sm text-muted-foreground">Saldo Débito</span>
+                  <span className="text-sm font-medium">
+                    {currentDebitBalance ? `R$ ${currentDebitBalance}` : 'R$ 0,00'}
+                  </span>
+                </div>
+                <div className="flex justify-between p-3 bg-background/30 rounded-lg">
+                  <span className="text-sm text-muted-foreground">Saldo Crédito</span>
+                  <span className="text-sm font-medium">
+                    {currentCreditBalance ? `R$ ${currentCreditBalance}` : 'R$ 0,00'}
                   </span>
                 </div>
                 {hasCreditCard && (
