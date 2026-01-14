@@ -177,7 +177,7 @@ serve(async (req) => {
         full_name: fullName,
         email: email || null,
         phone: phone,
-        cpf: cpf,
+        cpf: cpf || null,
         amount: amount,
         payment_status: 'pending',
         affiliate_code: validAffiliateCode,
@@ -191,9 +191,8 @@ serve(async (req) => {
         // Flag to activate affiliate mode for new user
         activate_affiliate_mode: body.activateAffiliateMode || false,
         admin_affiliate_link_code: body.adminAffiliateLinkCode || null,
-        // PIX key for affiliate payouts
-        pix_key: body.pixKey || null,
-        pix_key_type: body.pixKeyType || null,
+        // Add matricula for renewals
+        matricula: body.renewalMatricula || null,
       })
       .select()
       .single();
