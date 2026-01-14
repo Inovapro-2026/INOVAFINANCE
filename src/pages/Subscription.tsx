@@ -150,14 +150,11 @@ export default function Subscription() {
     try {
       const amount = (subscriptionPrice / 30) * days;
 
+      // For renewals, send the matricula - the edge function will fetch user data
       const response = await fetch(`${SUPABASE_URL}/functions/v1/create-pix-payment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fullName: user.fullName,
-          email: user.email || null,
-          phone: user.phone || '',
-          cpf: '',
           renewalMatricula: user.userId,
           renewalDays: days,
         }),
