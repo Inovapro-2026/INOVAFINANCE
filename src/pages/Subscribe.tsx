@@ -98,9 +98,9 @@ export default function Subscribe() {
   const [pixKeyType, setPixKeyType] = useState<'cpf' | 'email' | 'phone' | 'random'>('cpf');
 
   // Payment info
-  const [basePrice, setBasePrice] = useState(49.99);
+  const [basePrice, setBasePrice] = useState(19.90);
   const [affiliatePrice, setAffiliatePrice] = useState(29.99);
-  const [subscriptionAmount, setSubscriptionAmount] = useState(49.99);
+  const [subscriptionAmount, setSubscriptionAmount] = useState(19.90);
   const [pixData, setPixData] = useState<PixData | null>(null);
   const [userTempId, setUserTempId] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
