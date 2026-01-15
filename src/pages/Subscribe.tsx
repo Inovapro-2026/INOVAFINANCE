@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CreditCard, Sparkles, ArrowRight, User, Phone, Mail, FileText, Wallet, Calendar, ChevronLeft, Loader2, CheckCircle2, AlertCircle, Copy, Check, QrCode, Clock, Tag, Users, ArrowLeft } from 'lucide-react';
+import { CreditCard, Sparkles, ArrowRight, User, Phone, Mail, FileText, Wallet, Calendar, ChevronLeft, Loader2, CheckCircle2, AlertCircle, Copy, Check, QrCode, Clock, Tag, Users, ArrowLeft, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1541,6 +1541,19 @@ export default function Subscribe() {
                   </div>
                 </div>
               )}
+
+              {/* WhatsApp Support Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  const message = encodeURIComponent('Olá! Preciso de ajuda com o INOVAFINANCE');
+                  window.open(`https://wa.me/5511978197645?text=${message}`, '_blank');
+                }}
+                className="mt-4 w-full flex items-center justify-center gap-2 p-3 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-lg transition-colors"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span className="font-medium">Precisa de ajuda? Fale conosco</span>
+              </button>
             </div>
           )}
         </motion.div>
