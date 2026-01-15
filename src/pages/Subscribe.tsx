@@ -104,6 +104,7 @@ export default function Subscribe() {
   const [pixData, setPixData] = useState<PixData | null>(null);
   const [userTempId, setUserTempId] = useState<string | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [confirmedMatricula, setConfirmedMatricula] = useState<string | null>(null);
 
   // Speak the current step explanation
   const speakStepExplanation = useCallback((currentStep: FormStep) => {
@@ -221,6 +222,7 @@ export default function Subscribe() {
 
           // check-payment-status returns: { paymentStatus, matricula, userStatus, ... }
           if (data.paymentStatus === 'approved' && data.matricula && data.userStatus === 'approved') {
+            setConfirmedMatricula(String(data.matricula));
             setStep('success');
             clearInterval(interval);
           }
@@ -1722,9 +1724,23 @@ export default function Subscribe() {
             <CheckCircle2 className="w-12 h-12 text-white" />
           </motion.div>
           <h2 className="text-2xl font-bold mb-2">Pagamento confirmado!</h2>
-          <p className="text-muted-foreground mb-6">
+          <p className="text-muted-foreground mb-2">
             Sua conta foi criada com sucesso
           </p>
+          {confirmedMatricula && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-primary/10 border border-primary/20 rounded-xl p-4 mb-6"
+            >
+              <p className="text-sm text-muted-foreground mb-1">Sua matrícula é:</p>
+              <p className="text-3xl font-bold text-primary">{confirmedMatricula}</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Use este número para fazer login
+              </p>
+            </motion.div>
+          )}
           <Button
             onClick={() => navigate('/login')}
             className="w-full bg-gradient-to-r from-primary to-accent"
