@@ -70,7 +70,7 @@ export default function Dashboard() {
     if (user) {
       loadData();
     }
-  }, [user]);
+  }, [user, user?.initialBalance, user?.creditLimit]);
 
   const loadData = async () => {
     if (!user) return;
