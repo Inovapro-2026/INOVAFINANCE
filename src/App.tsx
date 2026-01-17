@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -5,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { BottomNav } from "./components/BottomNav";
+import { VideoSplash } from "./components/VideoSplash";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Cadastros from "./pages/Cadastros";
@@ -25,6 +27,8 @@ import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+const VIDEO_SHOWN_KEY = 'inovabank_video_shown';
 
 function AppRoutes() {
   const location = useLocation();
@@ -58,6 +62,29 @@ function AppRoutes() {
   );
 }
 
+function AppContent() {
+  const [showVideo, setShowVideo] = useState(false);
+
+  useEffect(() => {
+    // Check if video was shown in this session
+    const videoShown = sessionStorage.getItem(VIDEO_SHOWN_KEY);
+    if (!videoShown) {
+      setShowVideo(true);
+    }
+  }, []);
+
+  const handleVideoComplete = () => {
+    sessionStorage.setItem(VIDEO_SHOWN_KEY, 'true');
+    setShowVideo(false);
+  };
+
+  if (showVideo) {
+    return <VideoSplash onComplete={handleVideoComplete} />;
+  }
+
+  return <AppRoutes />;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -65,7 +92,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppRoutes />
+          <AppContent />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
