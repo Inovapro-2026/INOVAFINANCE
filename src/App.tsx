@@ -63,15 +63,10 @@ function AppRoutes() {
 }
 
 function AppContent() {
-  const [showVideo, setShowVideo] = useState(false);
-
-  useEffect(() => {
-    // Check if video was shown in this session
-    const videoShown = sessionStorage.getItem(VIDEO_SHOWN_KEY);
-    if (!videoShown) {
-      setShowVideo(true);
-    }
-  }, []);
+  const [showVideo, setShowVideo] = useState(() => {
+    // Check if video was shown in this session - show video if not shown yet
+    return !sessionStorage.getItem(VIDEO_SHOWN_KEY);
+  });
 
   const handleVideoComplete = () => {
     sessionStorage.setItem(VIDEO_SHOWN_KEY, 'true');
