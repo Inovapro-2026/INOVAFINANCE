@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
@@ -33,6 +33,8 @@ import {
   type Transaction 
 } from '@/lib/db';
 import { cn } from '@/lib/utils';
+import { ExpenseAnimation } from '@/components/animations/ExpenseAnimation';
+import { IncomeAnimation } from '@/components/animations/IncomeAnimation';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Utensils,
@@ -60,6 +62,10 @@ export default function Transactions() {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  
+  // Animation states
+  const [showExpenseAnimation, setShowExpenseAnimation] = useState(false);
+  const [showIncomeAnimation, setShowIncomeAnimation] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -73,10 +79,17 @@ export default function Transactions() {
     setTransactions(txns);
   };
 
+  const handleAnimationComplete = useCallback(() => {
+    setShowExpenseAnimation(false);
+    setShowIncomeAnimation(false);
+    loadTransactions();
+  }, []);
+
   const handleAddTransaction = async () => {
     if (!user || !amount || !selectedCategory || isSaving) return;
 
     setIsSaving(true);
+    const currentType = transactionType;
     
     try {
       await addTransaction({
@@ -90,12 +103,20 @@ export default function Transactions() {
       });
 
       await refreshUser();
+      
+      // Reset form
       setAmount('');
       setDescription('');
       setSelectedCategory('');
       setPaymentMethod('debit');
       setShowAddModal(false);
-      loadTransactions();
+      
+      // Trigger appropriate animation
+      if (currentType === 'expense') {
+        setShowExpenseAnimation(true);
+      } else {
+        setShowIncomeAnimation(true);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -398,6 +419,16 @@ export default function Transactions() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Transaction Animations */}
+      <ExpenseAnimation 
+        isVisible={showExpenseAnimation} 
+        onComplete={handleAnimationComplete} 
+      />
+      <IncomeAnimation 
+        isVisible={showIncomeAnimation} 
+        onComplete={handleAnimationComplete} 
+      />
     </motion.div>
   );
 }
