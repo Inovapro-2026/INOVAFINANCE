@@ -188,7 +188,7 @@ export function SchedulePaymentModal({ isOpen, onClose, onSchedule, preFill }: S
                         {selectedDate ? format(selectedDate, "dd 'de' MMMM", { locale: ptBR }) : "Escolha a data"}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+                    <PopoverContent className="w-auto p-0 z-[10000]" align="start">
                       <CalendarComponent
                         mode="single"
                         selected={selectedDate}
