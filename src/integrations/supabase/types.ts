@@ -605,6 +605,51 @@ export type Database = {
         }
         Relationships: []
       }
+      rotinas_transporte: {
+        Row: {
+          ativo: boolean | null
+          created_at: string
+          endereco_casa: string
+          endereco_trabalho: string
+          horario_trabalho: string
+          id: string
+          linha_onibus: string | null
+          modo_transporte: string | null
+          tempo_ate_ponto: number | null
+          ultima_verificacao: string | null
+          updated_at: string
+          user_matricula: number
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string
+          endereco_casa: string
+          endereco_trabalho: string
+          horario_trabalho: string
+          id?: string
+          linha_onibus?: string | null
+          modo_transporte?: string | null
+          tempo_ate_ponto?: number | null
+          ultima_verificacao?: string | null
+          updated_at?: string
+          user_matricula: number
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string
+          endereco_casa?: string
+          endereco_trabalho?: string
+          horario_trabalho?: string
+          id?: string
+          linha_onibus?: string | null
+          modo_transporte?: string | null
+          tempo_ate_ponto?: number | null
+          ultima_verificacao?: string | null
+          updated_at?: string
+          user_matricula?: number
+        }
+        Relationships: []
+      }
       salary_credits: {
         Row: {
           amount: number

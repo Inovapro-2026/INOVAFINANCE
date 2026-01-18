@@ -7,7 +7,8 @@ import {
   Calendar,
   RefreshCw,
   User,
-  FileText
+  FileText,
+  Bus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppMode } from '@/contexts/AppModeContext';
@@ -28,10 +29,11 @@ export function BottomNav() {
     { path: '/goals', icon: User, label: 'Perfil' },
   ];
 
-  // Modo Rotinas: Agenda | Rotinas | IA | Perfil
+  // Modo Rotinas: Agenda | Rotinas | Transporte | ISA | Perfil
   const rotinasItems = [
     { path: '/agenda', icon: Calendar, label: 'Agenda' },
     { path: '/rotinas', icon: RefreshCw, label: 'Rotinas' },
+    { path: '/transporte', icon: Bus, label: 'Transporte' },
     { path: '/assistente', icon: Mic, label: 'ISA', isCenter: true },
     { path: '/goals', icon: User, label: 'Perfil' },
   ];

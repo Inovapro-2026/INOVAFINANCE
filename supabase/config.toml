@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.gemini-tts]
 verify_jwt = false
+
+[functions.smart-transport]
+verify_jwt = false
