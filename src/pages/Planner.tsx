@@ -413,8 +413,8 @@ export default function Planner() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold gradient-text">INOVA Pay Planner</h1>
-          <p className="text-sm text-muted-foreground">Planejamento financeiro inteligente</p>
+          <h1 className="text-2xl font-bold gradient-text">Planejamento Financeiro</h1>
+          <p className="text-sm text-muted-foreground">Organize suas finanças</p>
         </div>
         <Button
           size="icon"
@@ -424,39 +424,6 @@ export default function Planner() {
         >
           <Settings className="w-5 h-5" />
         </Button>
-      </div>
-
-      {/* Quick Access - Agenda & Rotinas */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => navigate('/agenda')}
-          className="p-4 rounded-xl bg-gradient-to-br from-purple-500/20 to-purple-600/10 border border-purple-500/30 flex items-center gap-3"
-        >
-          <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-            <Calendar className="w-5 h-5 text-purple-400" />
-          </div>
-          <div className="text-left">
-            <p className="font-medium text-purple-300">Agenda</p>
-            <p className="text-xs text-muted-foreground">Lembretes & Eventos</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-purple-400 ml-auto" />
-        </motion.button>
-
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => navigate('/rotinas')}
-          className="p-4 rounded-xl bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30 flex items-center gap-3"
-        >
-          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-            <RefreshCw className="w-5 h-5 text-blue-400" />
-          </div>
-          <div className="text-left">
-            <p className="font-medium text-blue-300">Rotinas</p>
-            <p className="text-xs text-muted-foreground">Hábitos Diários</p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-blue-400 ml-auto" />
-        </motion.button>
       </div>
 
       {/* Summary Cards */}
