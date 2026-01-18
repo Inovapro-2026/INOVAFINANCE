@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, memo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, User, Wallet, Mail, Phone, CreditCard, Calendar, UserPlus, CheckCircle, Sparkles, Fingerprint, Briefcase, DollarSign, CalendarDays } from 'lucide-react';
 import { NumericKeypad } from '@/components/NumericKeypad';
@@ -15,7 +15,8 @@ import {
   authenticateWithBiometric,
   getBiometricMatricula
 } from '@/services/biometricService';
-import { playAudioExclusively } from '@/services/audioManager';
+import { playAudioExclusively, stopAllAudio } from '@/services/audioManager';
+import { wasLoginAudioPlayed, markLoginAudioPlayed, stopAllVoice } from '@/services/voiceQueueService';
 import loginAudio from '@/assets/login-audio.mp3';
 
 type Step = 'matricula' | 'register' | 'success' | 'pending' | 'rejected';
@@ -92,41 +93,56 @@ export default function Login() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, user, isLoading: authLoading } = useAuth();
 
-  // Play login audio only once per session and only if user is NOT logged in
+  // Play login audio only once per session and only on /login route when NOT authenticated
   const loginAudioPlayedRef = useRef(false);
   
   useEffect(() => {
-    // Wait auth state to settle; prevents audio playing during initial load while user is still being fetched
+    // Wait for auth state to settle
     if (authLoading) return;
 
-    // Don't play audio if user is already logged in
+    // CRITICAL: Only play on /login route
+    if (location.pathname !== '/login') {
+      console.log('[Login] Audio skipped: not on /login route');
+      return;
+    }
+
+    // CRITICAL: Never play if user is logged in
     if (user) {
-      console.log('Login audio skipped: user already logged in');
+      console.log('[Login] Audio skipped: user is authenticated');
       return;
     }
     
-    // Check if audio was already played this session
-    const alreadyPlayed = sessionStorage.getItem('login_audio_played');
-    if (alreadyPlayed || loginAudioPlayedRef.current) {
-      console.log('Login audio skipped: already played this session');
+    // Check if audio was already played this session using centralized service
+    if (wasLoginAudioPlayed() || loginAudioPlayedRef.current) {
+      console.log('[Login] Audio skipped: already played this session');
       return;
     }
     
+    // Mark as played BEFORE playing to prevent race conditions
     loginAudioPlayedRef.current = true;
-    sessionStorage.setItem('login_audio_played', 'true');
+    markLoginAudioPlayed();
     
-    // Small delay to ensure intro audio has stopped
+    // Small delay to ensure intro audio has fully stopped
     const timer = setTimeout(() => {
+      // Stop any other audio first
+      stopAllVoice();
+      stopAllAudio();
+      
       const audio = new Audio(loginAudio);
-      playAudioExclusively(audio).catch((err) => console.error('Error playing login audio:', err));
-    }, 500);
+      playAudioExclusively(audio)
+        .then(() => console.log('[Login] Audio completed'))
+        .catch((err) => console.error('[Login] Audio error:', err));
+    }, 600);
     
     return () => {
       clearTimeout(timer);
     };
-  }, [user, authLoading]);
+  }, [user, authLoading, location.pathname]);
+  
+
   // Check biometric availability on mount
   useEffect(() => {
     const checkBiometric = async () => {

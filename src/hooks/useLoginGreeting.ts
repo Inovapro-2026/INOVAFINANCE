@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { speakWithElevenLabs } from '@/services/elevenlabsTtsService';
 import { stopAllAudio } from '@/services/audioManager';
+import { stopAllVoice, wasDailyGreetingSpoken, markDailyGreetingSpoken, wasTabGreetedSession, markTabGreetedSession } from '@/services/voiceQueueService';
 import { getUserSalaryInfo, calculateDaysUntil, getScheduledPayments, type ScheduledPayment } from '@/lib/plannerDb';
 import { calculateBalance, getTransactions } from '@/lib/db';
 import { 
@@ -18,7 +19,6 @@ interface UseLoginGreetingOptions {
   enabled?: boolean;
 }
 
-const LAST_GREETING_KEY = 'inovabank_last_greeting';
 const GREETING_SESSION_KEY = 'inovabank_greeting_session';
 
 /**
@@ -46,13 +46,11 @@ export function useLoginGreeting({ userId, userName, initialBalance, enabled = t
       isGreeting.current = true;
 
       try {
-        // Check if we already greeted today
-        const lastGreeting = localStorage.getItem(LAST_GREETING_KEY);
-        const today = new Date().toDateString();
-        
-        if (lastGreeting === today) {
+        // Check if we already greeted today using centralized service
+        if (wasDailyGreetingSpoken()) {
           hasGreeted.current = true;
           sessionStorage.setItem(GREETING_SESSION_KEY, String(userId));
+          console.log('[LoginGreeting] Already greeted today, skipping');
           return;
         }
 
@@ -77,20 +75,24 @@ export function useLoginGreeting({ userId, userName, initialBalance, enabled = t
         
         // Mark as greeted BEFORE speaking to prevent race conditions
         hasGreeted.current = true;
-        localStorage.setItem(LAST_GREETING_KEY, today);
+        markDailyGreetingSpoken();
         sessionStorage.setItem(GREETING_SESSION_KEY, String(userId));
+        console.log('[LoginGreeting] Marked as greeted, preparing to speak');
 
         // Small delay to ensure UI is ready
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Stop any current audio before speaking
+        // CRITICAL: Stop all audio/voice before speaking
+        stopAllVoice();
         stopAllAudio();
 
         // Speak the greeting with ElevenLabs
         try {
+          console.log('[LoginGreeting] Speaking greeting');
           await speakWithElevenLabs(greeting);
+          console.log('[LoginGreeting] Greeting completed');
         } catch (err) {
-          console.error('Greeting TTS error:', err);
+          console.error('[LoginGreeting] TTS error:', err);
         }
 
         // Check and send notification reminders

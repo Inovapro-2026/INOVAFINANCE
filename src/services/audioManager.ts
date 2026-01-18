@@ -6,23 +6,28 @@ let isPlaying = false;
 
 /**
  * Stop all current audio (both HTML5 Audio and Speech Synthesis)
+ * CRITICAL: This MUST be called before any new audio/speech starts
  */
 export function stopAllAudio(): void {
   // Stop HTML5 Audio
   if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.currentTime = 0;
+    try {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    } catch (e) {
+      console.warn('AudioManager: Error stopping audio:', e);
+    }
     currentAudio = null;
   }
 
-  // Stop Speech Synthesis
+  // Stop Speech Synthesis - ALWAYS cancel
   if (window.speechSynthesis) {
     window.speechSynthesis.cancel();
     currentSpeechSynthesis = null;
   }
 
   isPlaying = false;
-  console.log('AudioManager: All audio stopped');
+  console.log('[AudioManager] All audio stopped');
 }
 
 /**
@@ -34,14 +39,18 @@ export function isGlobalAudioPlaying(): boolean {
 
 /**
  * Play audio with exclusive control (stops previous audio)
+ * CRITICAL: Always stops all other audio before playing
  */
 export async function playAudioExclusively(
   audio: HTMLAudioElement,
   onEnd?: () => void,
   onError?: (error: any) => void
 ): Promise<void> {
-  // Stop any current audio before playing new one
+  // CRITICAL: Stop any current audio before playing new one
   stopAllAudio();
+  
+  // Small delay to ensure cleanup
+  await new Promise(resolve => setTimeout(resolve, 50));
 
   currentAudio = audio;
   isPlaying = true;
@@ -77,6 +86,7 @@ export async function playAudioExclusively(
 
 /**
  * Speak text with exclusive control (stops previous speech)
+ * CRITICAL: Always cancels all other audio/speech before speaking
  */
 export function speakTextExclusively(
   text: string,
@@ -91,11 +101,11 @@ export function speakTextExclusively(
   }
 ): void {
   if (!('speechSynthesis' in window)) {
-    console.warn('AudioManager: Speech synthesis not supported');
+    console.warn('[AudioManager] Speech synthesis not supported');
     return;
   }
 
-  // Stop any current audio/speech before starting new one
+  // CRITICAL: Stop any current audio/speech before starting new one
   stopAllAudio();
 
   const utterance = new SpeechSynthesisUtterance(text);
@@ -122,12 +132,8 @@ export function speakTextExclusively(
   };
 
   window.speechSynthesis.speak(utterance);
-  console.log('AudioManager: Speaking text exclusively:', text.substring(0, 50) + '...');
+  console.log('[AudioManager] Speaking text exclusively:', text.substring(0, 50) + '...');
 }
-
-/**
- * Check if audio is currently playing
- */
 export function isAudioPlaying(): boolean {
   return isPlaying || 
          (currentAudio && !currentAudio.paused) || 
