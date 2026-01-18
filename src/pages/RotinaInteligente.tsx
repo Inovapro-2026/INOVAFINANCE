@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   MapPin, 
@@ -9,11 +9,6 @@ import {
   BellOff,
   RefreshCw,
   Settings,
-  Play,
-  Pause,
-  Train,
-  Car,
-  Footprints,
   AlertTriangle,
   CheckCircle2,
   Timer,
@@ -21,7 +16,13 @@ import {
   ArrowRight,
   Home as HomeIcon,
   Building2,
-  Loader2
+  Loader2,
+  Search,
+  MapPinned,
+  Locate,
+  Volume2,
+  VolumeX,
+  Info
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -37,7 +38,6 @@ import { isaSpeak } from '@/services/isaVoiceService';
 import { useIsaGreeting } from '@/hooks/useIsaGreeting';
 import { ModeToggle } from '@/components/ModeToggle';
 import { BrazilClock } from '@/components/BrazilClock';
-import { AddressAutocomplete } from '@/components/AddressAutocomplete';
 import {
   Dialog,
   DialogContent,
@@ -51,6 +51,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface TransportRoutine {
   id: string;
@@ -64,50 +65,80 @@ interface TransportRoutine {
   ativo: boolean;
 }
 
-interface RouteStatus {
-  duration: string;
-  durationValue: number;
-  distance: string;
-  departureTime: string | null;
-  arrivalTime: string | null;
-  idealDepartureTime: string;
-  shouldLeaveNow: boolean;
-  minutesUntilDeparture: number;
-  status: 'early' | 'onTime' | 'hurry' | 'late';
-  recommendation: string;
-  transitDetails?: {
-    lineName: string;
-    vehicleType: string;
-    departureStop: string;
-    arrivalStop: string;
-    departureTime: string;
-    numStops: number;
-    lineColor?: string;
-  };
-  steps?: Array<{
-    instruction: string;
-    distance: string;
-    duration: string;
-    travelMode: string;
-  }>;
+interface BusLine {
+  codigoLinha: number;
+  letreiro: string;
+  sentido: string;
+  sentidoCodigo: number;
+  terminalPrincipal: string;
+  terminalSecundario: string;
+}
+
+interface BusStop {
+  codigoParada: number;
+  nome: string;
+  endereco: string;
+  latitude: number;
+  longitude: number;
+  distancia?: number;
+}
+
+interface BusPrediction {
+  prefixo: string;
+  acessivel: boolean;
+  previsaoMinutos: number;
+  previsaoHorario: string;
+  latitude: number;
+  longitude: number;
+}
+
+interface LinePrediction {
+  codigoLinha: number;
+  letreiro: string;
+  sentido: string;
+  destino: string;
+  veiculos: BusPrediction[];
+}
+
+interface RouteConfig {
+  linhaOnibus: BusLine | null;
+  paradaOrigem: BusStop | null;
+  paradaDestino: BusStop | null;
 }
 
 export default function RotinaInteligente() {
   const { user } = useAuth();
   const [routine, setRoutine] = useState<TransportRoutine | null>(null);
-  const [routeStatus, setRouteStatus] = useState<RouteStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
   const [alertsEnabled, setAlertsEnabled] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [lastAlertTime, setLastAlertTime] = useState<number>(0);
   
-  // Config form state
-  const [enderecoCasa, setEnderecoCasa] = useState('');
-  const [enderecoTrabalho, setEnderecoTrabalho] = useState('');
+  // SPTrans data
+  const [predictions, setPredictions] = useState<LinePrediction[]>([]);
+  const [selectedPrediction, setSelectedPrediction] = useState<LinePrediction | null>(null);
+  const [nextBusMinutes, setNextBusMinutes] = useState<number | null>(null);
+  
+  // Config state
+  const [configStep, setConfigStep] = useState<'linha' | 'parada' | 'horario'>('linha');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState<BusLine[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedLine, setSelectedLine] = useState<BusLine | null>(null);
+  const [lineStops, setLineStops] = useState<BusStop[]>([]);
+  const [selectedStop, setSelectedStop] = useState<BusStop | null>(null);
   const [horarioTrabalho, setHorarioTrabalho] = useState('08:30');
   const [tempoAtePonto, setTempoAtePonto] = useState(10);
-  const [modoTransporte, setModoTransporte] = useState('transit');
+  
+  // Geolocation
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [nearbyStops, setNearbyStops] = useState<BusStop[]>([]);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  
+  // Refs for interval
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // ISA greeting
   useIsaGreeting({
@@ -136,11 +167,19 @@ export default function RotinaInteligente() {
     
     if (data) {
       setRoutine(data as TransportRoutine);
-      setEnderecoCasa(data.endereco_casa);
-      setEnderecoTrabalho(data.endereco_trabalho);
       setHorarioTrabalho(data.horario_trabalho);
       setTempoAtePonto(data.tempo_ate_ponto);
-      setModoTransporte(data.modo_transporte);
+      
+      // Parse line info if available
+      if (data.linha_onibus) {
+        try {
+          const lineData = JSON.parse(data.linha_onibus);
+          if (lineData.linha) setSelectedLine(lineData.linha);
+          if (lineData.parada) setSelectedStop(lineData.parada);
+        } catch (e) {
+          console.log('Could not parse line data');
+        }
+      }
     }
   }, [user]);
 
@@ -148,123 +187,269 @@ export default function RotinaInteligente() {
     loadRoutine();
   }, [loadRoutine]);
 
-  // Get route status
-  const fetchRouteStatus = useCallback(async () => {
-    if (!routine) return;
+  // Get bus predictions
+  const fetchPredictions = useCallback(async () => {
+    if (!selectedStop) return;
     
     setIsRefreshing(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('smart-transport', {
+      const body: any = {
+        action: 'previsao-parada',
+        codigoParada: selectedStop.codigoParada
+      };
+      
+      if (selectedLine) {
+        body.codigoLinha = selectedLine.codigoLinha;
+      }
+      
+      const { data, error } = await supabase.functions.invoke('sptrans-api', { body });
+      
+      if (error) throw error;
+      
+      if (data.success) {
+        const linhas = data.linhas || [];
+        setPredictions(linhas);
+        
+        // Find prediction for selected line
+        if (selectedLine) {
+          const linePred = linhas.find((l: LinePrediction) => l.codigoLinha === selectedLine.codigoLinha);
+          setSelectedPrediction(linePred || null);
+          
+          if (linePred && linePred.veiculos.length > 0) {
+            const nextBus = linePred.veiculos[0];
+            setNextBusMinutes(nextBus.previsaoMinutos);
+            
+            // Smart alerts
+            checkAndTriggerAlert(nextBus.previsaoMinutos, linePred.letreiro);
+          } else {
+            setNextBusMinutes(null);
+          }
+        } else if (linhas.length > 0) {
+          setSelectedPrediction(linhas[0]);
+          if (linhas[0].veiculos.length > 0) {
+            setNextBusMinutes(linhas[0].veiculos[0].previsaoMinutos);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching predictions:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [selectedStop, selectedLine]);
+
+  // Check and trigger alerts
+  const checkAndTriggerAlert = async (minutesToBus: number, lineName: string) => {
+    if (!alertsEnabled || !routine) return;
+    
+    const now = Date.now();
+    // Only alert every 2 minutes
+    if (now - lastAlertTime < 2 * 60 * 1000) return;
+    
+    const tempoTotal = minutesToBus;
+    const tempoNecessario = tempoAtePonto;
+    const userName = user?.fullName?.split(' ')[0] || 'usuário';
+    
+    let message = '';
+    let shouldSpeak = false;
+    
+    if (minutesToBus <= 0) {
+      message = `${userName}, o ônibus ${lineName} está chegando no ponto agora!`;
+      shouldSpeak = true;
+    } else if (minutesToBus <= tempoNecessario) {
+      message = `${userName}, o ônibus ${lineName} chega em ${minutesToBus} minutos. Você precisa sair agora!`;
+      shouldSpeak = true;
+    } else if (minutesToBus <= tempoNecessario + 3) {
+      message = `${userName}, o ônibus ${lineName} chega em ${minutesToBus} minutos. Prepare-se para sair.`;
+      shouldSpeak = true;
+    } else if (minutesToBus <= tempoNecessario + 5) {
+      message = `Seu ônibus ${lineName} está a ${minutesToBus} minutos do ponto.`;
+      shouldSpeak = true;
+    }
+    
+    if (shouldSpeak && voiceEnabled) {
+      setLastAlertTime(now);
+      await isaSpeak(message, 'rotina-inteligente');
+      toast.info('🚌 ' + message);
+    }
+  };
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    if (selectedStop) {
+      fetchPredictions();
+      refreshIntervalRef.current = setInterval(fetchPredictions, 30 * 1000);
+      return () => {
+        if (refreshIntervalRef.current) {
+          clearInterval(refreshIntervalRef.current);
+        }
+      };
+    }
+  }, [selectedStop, fetchPredictions]);
+
+  // Search bus lines
+  const searchLines = async () => {
+    if (!searchTerm.trim() || searchTerm.length < 2) return;
+    
+    setIsSearching(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sptrans-api', {
         body: {
-          action: 'status',
-          origin: routine.endereco_casa,
-          destination: routine.endereco_trabalho,
-          mode: routine.modo_transporte,
-          arrivalTime: routine.horario_trabalho
+          action: 'buscar-linhas',
+          termo: searchTerm
         }
       });
       
       if (error) throw error;
       
-      if (data.success && data.status) {
-        setRouteStatus(data.status);
-        
-        // Check if we should alert
-        if (alertsEnabled && data.status.shouldLeaveNow) {
-          const now = Date.now();
-          // Only alert every 5 minutes
-          if (now - lastAlertTime > 5 * 60 * 1000) {
-            setLastAlertTime(now);
-            await isaSpeak(data.status.recommendation, 'rotina-inteligente');
-            toast.warning('⏰ Hora de sair!', {
-              description: data.status.recommendation
-            });
-          }
-        }
+      if (data.success && data.linhas) {
+        setSearchResults(data.linhas);
+      } else {
+        setSearchResults([]);
+        toast.info('Nenhuma linha encontrada');
       }
     } catch (err) {
-      console.error('Error fetching route status:', err);
-      toast.error('Erro ao atualizar status');
+      console.error('Error searching lines:', err);
+      toast.error('Erro ao buscar linhas');
     } finally {
-      setIsRefreshing(false);
+      setIsSearching(false);
     }
-  }, [routine, alertsEnabled, lastAlertTime]);
+  };
 
-  // Auto-refresh every 2 minutes
-  useEffect(() => {
-    if (routine) {
-      fetchRouteStatus();
-      const interval = setInterval(fetchRouteStatus, 2 * 60 * 1000);
-      return () => clearInterval(interval);
+  // Get user location
+  const getUserLocation = async () => {
+    setIsLoadingLocation(true);
+    
+    if (!navigator.geolocation) {
+      toast.error('Geolocalização não suportada');
+      setIsLoadingLocation(false);
+      return;
     }
-  }, [routine, fetchRouteStatus]);
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation({ lat: latitude, lng: longitude });
+        
+        // Search nearby stops if we have a selected line
+        if (selectedLine) {
+          try {
+            const { data, error } = await supabase.functions.invoke('sptrans-api', {
+              body: {
+                action: 'paradas-proximas',
+                lat: latitude,
+                lng: longitude,
+                raio: 1000,
+                codigoLinha: selectedLine.codigoLinha
+              }
+            });
+            
+            if (error) throw error;
+            
+            if (data.success && data.paradas) {
+              setNearbyStops(data.paradas);
+              setLineStops(data.paradas);
+            }
+          } catch (err) {
+            console.error('Error getting nearby stops:', err);
+          }
+        }
+        
+        setIsLoadingLocation(false);
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        toast.error('Erro ao obter localização');
+        setIsLoadingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // Select a line and load its stops
+  const handleSelectLine = async (line: BusLine) => {
+    setSelectedLine(line);
+    setConfigStep('parada');
+    setSearchResults([]);
+    
+    // Get stops for this line
+    try {
+      const { data, error } = await supabase.functions.invoke('sptrans-api', {
+        body: {
+          action: 'paradas-proximas',
+          lat: userLocation?.lat || -23.5505,
+          lng: userLocation?.lng || -46.6333,
+          raio: 2000,
+          codigoLinha: line.codigoLinha
+        }
+      });
+      
+      if (error) throw error;
+      
+      if (data.success && data.paradas) {
+        setLineStops(data.paradas);
+      }
+    } catch (err) {
+      console.error('Error loading stops:', err);
+      toast.error('Erro ao carregar paradas');
+    }
+  };
 
   // Save routine
   const handleSaveRoutine = async () => {
     if (!user) return;
-    if (!enderecoCasa.trim() || !enderecoTrabalho.trim()) {
-      toast.error('Preencha os endereços');
+    if (!selectedLine || !selectedStop) {
+      toast.error('Selecione a linha e a parada');
       return;
     }
     
     setIsLoading(true);
     
     try {
-      // Validate addresses by testing directions (more reliable than geocode)
-      const { data: testDirections, error: dirError } = await supabase.functions.invoke('smart-transport', {
-        body: { 
-          action: 'directions', 
-          origin: enderecoCasa,
-          destination: enderecoTrabalho,
-          mode: modoTransporte
-        }
-      });
+      const routineData = {
+        linha: selectedLine,
+        parada: selectedStop
+      };
       
-      if (dirError || !testDirections?.success || !testDirections?.directions) {
-        toast.error('Não foi possível calcular a rota. Verifique os endereços.');
-        setIsLoading(false);
-        return;
-      }
-      
-      toast.success(`Rota encontrada: ${testDirections.directions.distance} - ${testDirections.directions.duration}`);
-      
-      // Save to database
       if (routine) {
-        // Update existing
         const { error } = await supabase
           .from('rotinas_transporte')
           .update({
-            endereco_casa: enderecoCasa,
-            endereco_trabalho: enderecoTrabalho,
+            endereco_casa: selectedStop.endereco || selectedStop.nome,
+            endereco_trabalho: `Linha ${selectedLine.letreiro}`,
             horario_trabalho: horarioTrabalho,
             tempo_ate_ponto: tempoAtePonto,
-            modo_transporte: modoTransporte,
+            linha_onibus: JSON.stringify(routineData),
+            modo_transporte: 'transit',
             updated_at: new Date().toISOString()
           })
           .eq('id', routine.id);
         
         if (error) throw error;
       } else {
-        // Insert new
         const { error } = await supabase
           .from('rotinas_transporte')
           .insert({
             user_matricula: user.userId,
-            endereco_casa: enderecoCasa,
-            endereco_trabalho: enderecoTrabalho,
+            endereco_casa: selectedStop.endereco || selectedStop.nome,
+            endereco_trabalho: `Linha ${selectedLine.letreiro}`,
             horario_trabalho: horarioTrabalho,
             tempo_ate_ponto: tempoAtePonto,
-            modo_transporte: modoTransporte
+            linha_onibus: JSON.stringify(routineData),
+            modo_transporte: 'transit'
           });
         
         if (error) throw error;
       }
       
       toast.success('Rotina salva com sucesso!');
-      await isaSpeak('Rotina de transporte configurada! Vou te avisar quando for hora de sair.', 'rotina-inteligente');
+      if (voiceEnabled) {
+        await isaSpeak(`Rotina configurada! Vou monitorar a linha ${selectedLine.letreiro} na parada ${selectedStop.nome}.`, 'rotina-inteligente');
+      }
       setShowConfig(false);
       await loadRoutine();
+      fetchPredictions();
     } catch (err) {
       console.error('Error saving routine:', err);
       toast.error('Erro ao salvar rotina');
@@ -273,40 +458,35 @@ export default function RotinaInteligente() {
     }
   };
 
-  // Open in Google Maps
-  const openInMaps = () => {
-    if (!routine) return;
-    const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(routine.endereco_casa)}&destination=${encodeURIComponent(routine.endereco_trabalho)}&travelmode=${routine.modo_transporte}`;
-    window.open(url, '_blank');
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'early': return 'bg-emerald-500';
-      case 'onTime': return 'bg-blue-500';
-      case 'hurry': return 'bg-amber-500';
-      case 'late': return 'bg-red-500';
-      default: return 'bg-gray-500';
+  // Get status info
+  const getStatus = () => {
+    if (nextBusMinutes === null) {
+      return { status: 'waiting', label: 'Aguardando', color: 'bg-muted' };
+    }
+    
+    const diff = nextBusMinutes - tempoAtePonto;
+    
+    if (diff < 0) {
+      return { status: 'late', label: 'Perdido', color: 'bg-red-500' };
+    } else if (diff <= 2) {
+      return { status: 'hurry', label: 'Saia Agora!', color: 'bg-amber-500' };
+    } else if (diff <= 5) {
+      return { status: 'onTime', label: 'Prepare-se', color: 'bg-blue-500' };
+    } else {
+      return { status: 'early', label: 'Tranquilo', color: 'bg-emerald-500' };
     }
   };
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'early': return 'Tranquilo';
-      case 'onTime': return 'No horário';
-      case 'hurry': return 'Atenção!';
-      case 'late': return 'Atrasado';
-      default: return 'Desconhecido';
-    }
-  };
+  const statusInfo = getStatus();
 
-  const getModeIcon = (mode: string) => {
-    switch (mode) {
-      case 'transit': return Bus;
-      case 'driving': return Car;
-      case 'walking': return Footprints;
-      default: return Bus;
-    }
+  // Reset config
+  const resetConfig = () => {
+    setConfigStep('linha');
+    setSearchTerm('');
+    setSearchResults([]);
+    setSelectedLine(null);
+    setLineStops([]);
+    setSelectedStop(null);
   };
 
   if (!user) {
@@ -328,7 +508,7 @@ export default function RotinaInteligente() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-foreground">Rotina Inteligente</h1>
-              <p className="text-xs text-muted-foreground">Transporte em tempo real</p>
+              <p className="text-xs text-muted-foreground">SPTrans Olho Vivo</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -340,108 +520,126 @@ export default function RotinaInteligente() {
 
       <div className="px-4 py-6 space-y-6">
         {/* No routine configured */}
-        {!routine && (
+        {!selectedStop && !routine && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-12"
           >
             <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-              <MapPin className="w-10 h-10 text-blue-500" />
+              <Bus className="w-10 h-10 text-blue-500" />
             </div>
             <h2 className="text-xl font-semibold mb-2">Configure sua rotina</h2>
             <p className="text-muted-foreground mb-6 max-w-xs mx-auto">
-              Defina seu trajeto casa-trabalho e receba alertas inteligentes sobre quando sair
+              Escolha sua linha de ônibus e receba alertas em tempo real da SPTrans
             </p>
-            <Button onClick={() => setShowConfig(true)} size="lg" className="gap-2">
+            <Button onClick={() => { resetConfig(); setShowConfig(true); }} size="lg" className="gap-2">
               <Settings className="w-5 h-5" />
               Configurar Rotina
             </Button>
           </motion.div>
         )}
 
-        {/* Route Status Card */}
-        {routine && routeStatus && (
+        {/* Main Status Card */}
+        {selectedStop && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
           >
             <Card className="overflow-hidden border-0 shadow-xl">
               {/* Status Header */}
-              <div className={cn(
-                "p-4 text-white",
-                getStatusColor(routeStatus.status)
-              )}>
+              <div className={cn("p-4 text-white", statusInfo.color)}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {routeStatus.status === 'late' && <AlertTriangle className="w-6 h-6 animate-pulse" />}
-                    {routeStatus.status === 'hurry' && <Timer className="w-6 h-6 animate-bounce" />}
-                    {routeStatus.status === 'onTime' && <Clock className="w-6 h-6" />}
-                    {routeStatus.status === 'early' && <CheckCircle2 className="w-6 h-6" />}
+                    {statusInfo.status === 'late' && <AlertTriangle className="w-6 h-6 animate-pulse" />}
+                    {statusInfo.status === 'hurry' && <Timer className="w-6 h-6 animate-bounce" />}
+                    {statusInfo.status === 'onTime' && <Clock className="w-6 h-6" />}
+                    {statusInfo.status === 'early' && <CheckCircle2 className="w-6 h-6" />}
+                    {statusInfo.status === 'waiting' && <Loader2 className="w-6 h-6 animate-spin" />}
                     <div>
-                      <p className="text-lg font-bold">{getStatusLabel(routeStatus.status)}</p>
-                      <p className="text-sm opacity-90">{routeStatus.recommendation}</p>
+                      <p className="text-lg font-bold">{statusInfo.label}</p>
+                      <p className="text-sm opacity-90">
+                        {selectedLine ? `Linha ${selectedLine.letreiro}` : 'Carregando...'}
+                      </p>
                     </div>
                   </div>
-                  <Badge variant="secondary" className="bg-white/20 text-white border-0">
-                    {routeStatus.minutesUntilDeparture > 0 
-                      ? `${routeStatus.minutesUntilDeparture} min`
-                      : 'Agora!'}
+                  <Badge variant="secondary" className="bg-white/20 text-white border-0 text-lg px-3 py-1">
+                    {nextBusMinutes !== null ? `${nextBusMinutes} min` : '...'}
                   </Badge>
                 </div>
               </div>
 
               <CardContent className="p-4 space-y-4">
-                {/* Time Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-3 bg-muted/50 rounded-xl">
-                    <p className="text-xs text-muted-foreground mb-1">Hora ideal de saída</p>
-                    <p className="text-2xl font-bold text-primary">{routeStatus.idealDepartureTime}</p>
+                {/* Stop Info */}
+                <div className="p-3 bg-muted/50 rounded-xl">
+                  <div className="flex items-center gap-2 mb-1">
+                    <MapPinned className="w-4 h-4 text-primary" />
+                    <span className="font-medium text-sm">Ponto de Ônibus</span>
                   </div>
-                  <div className="text-center p-3 bg-muted/50 rounded-xl">
-                    <p className="text-xs text-muted-foreground mb-1">Chegada prevista</p>
-                    <p className="text-2xl font-bold">{routine.horario_trabalho}</p>
-                  </div>
+                  <p className="text-sm text-muted-foreground">{selectedStop.nome}</p>
+                  {selectedStop.endereco && (
+                    <p className="text-xs text-muted-foreground">{selectedStop.endereco}</p>
+                  )}
                 </div>
 
-                {/* Route Details */}
-                <div className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 rounded-xl">
-                  <div className="flex items-center gap-2">
-                    <Route className="w-5 h-5 text-blue-500" />
-                    <span className="font-medium">{routeStatus.distance}</span>
+                {/* Next buses */}
+                {selectedPrediction && selectedPrediction.veiculos.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Próximos ônibus:</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {selectedPrediction.veiculos.slice(0, 3).map((v, i) => (
+                        <div 
+                          key={i}
+                          className={cn(
+                            "p-2 rounded-lg text-center",
+                            i === 0 ? "bg-primary/10 border-2 border-primary" : "bg-muted/50"
+                          )}
+                        >
+                          <p className={cn(
+                            "text-xl font-bold",
+                            i === 0 && "text-primary"
+                          )}>
+                            {v.previsaoMinutos}
+                          </p>
+                          <p className="text-xs text-muted-foreground">min</p>
+                          {v.acessivel && (
+                            <Badge variant="outline" className="text-xs mt-1">♿</Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-cyan-500" />
-                    <span className="font-medium">{routeStatus.duration}</span>
-                  </div>
-                </div>
+                )}
 
-                {/* Transit Details */}
-                {routeStatus.transitDetails && (
-                  <div className="p-3 border border-border rounded-xl space-y-2">
-                    <div className="flex items-center gap-2">
-                      {routeStatus.transitDetails.vehicleType === 'SUBWAY' ? (
-                        <Train className="w-5 h-5" style={{ color: routeStatus.transitDetails.lineColor }} />
-                      ) : (
-                        <Bus className="w-5 h-5" style={{ color: routeStatus.transitDetails.lineColor }} />
-                      )}
-                      <span className="font-bold" style={{ color: routeStatus.transitDetails.lineColor }}>
-                        {routeStatus.transitDetails.lineName}
-                      </span>
-                      <Badge variant="outline" className="ml-auto">
-                        {routeStatus.transitDetails.numStops} paradas
-                      </Badge>
-                    </div>
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <span>{routeStatus.transitDetails.departureStop}</span>
-                      <ArrowRight className="w-4 h-4 mx-2" />
-                      <span>{routeStatus.transitDetails.arrivalStop}</span>
-                    </div>
-                    {routeStatus.transitDetails.departureTime && (
-                      <p className="text-sm">
-                        Próximo: <span className="font-medium text-primary">{routeStatus.transitDetails.departureTime}</span>
-                      </p>
-                    )}
+                {selectedPrediction && selectedPrediction.veiculos.length === 0 && (
+                  <div className="p-4 bg-amber-500/10 rounded-xl text-center">
+                    <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                    <p className="text-sm font-medium">Nenhum ônibus em operação</p>
+                    <p className="text-xs text-muted-foreground">Aguardando dados da SPTrans...</p>
+                  </div>
+                )}
+
+                {/* All lines at this stop */}
+                {predictions.length > 1 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-muted-foreground">Outras linhas nesta parada:</p>
+                    <ScrollArea className="h-32">
+                      <div className="space-y-2">
+                        {predictions.filter(p => p.codigoLinha !== selectedLine?.codigoLinha).map((pred) => (
+                          <div key={pred.codigoLinha} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <Bus className="w-4 h-4 text-muted-foreground" />
+                              <span className="font-medium text-sm">{pred.letreiro}</span>
+                            </div>
+                            {pred.veiculos.length > 0 ? (
+                              <Badge variant="outline">{pred.veiculos[0].previsaoMinutos} min</Badge>
+                            ) : (
+                              <Badge variant="secondary">--</Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   </div>
                 )}
 
@@ -450,7 +648,7 @@ export default function RotinaInteligente() {
                   <Button 
                     variant="outline" 
                     className="flex-1 gap-2"
-                    onClick={fetchRouteStatus}
+                    onClick={fetchPredictions}
                     disabled={isRefreshing}
                   >
                     {isRefreshing ? (
@@ -462,10 +660,13 @@ export default function RotinaInteligente() {
                   </Button>
                   <Button 
                     className="flex-1 gap-2 bg-gradient-to-r from-blue-500 to-cyan-500"
-                    onClick={openInMaps}
+                    onClick={() => {
+                      const url = `https://www.google.com/maps/search/?api=1&query=${selectedStop.latitude},${selectedStop.longitude}`;
+                      window.open(url, '_blank');
+                    }}
                   >
                     <Navigation className="w-4 h-4" />
-                    Abrir Rota
+                    Ver no Mapa
                   </Button>
                 </div>
               </CardContent>
@@ -473,58 +674,37 @@ export default function RotinaInteligente() {
           </motion.div>
         )}
 
-        {/* Quick Info Cards */}
-        {routine && (
-          <div className="grid grid-cols-2 gap-4">
-            {/* Home */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500/10 to-green-500/10">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <HomeIcon className="w-5 h-5 text-emerald-500" />
-                    <span className="font-medium text-sm">Casa</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {routine.endereco_casa}
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Work */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500/10 to-indigo-500/10">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Building2 className="w-5 h-5 text-blue-500" />
-                    <span className="font-medium text-sm">Trabalho</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {routine.endereco_trabalho}
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
-        )}
-
-        {/* Settings */}
-        {routine && (
+        {/* Quick Settings */}
+        {selectedStop && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.1 }}
           >
             <Card className="border-0 shadow-lg">
               <CardContent className="p-4 space-y-4">
+                {/* Voice Alerts */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {voiceEnabled ? (
+                      <Volume2 className="w-5 h-5 text-primary" />
+                    ) : (
+                      <VolumeX className="w-5 h-5 text-muted-foreground" />
+                    )}
+                    <div>
+                      <p className="font-medium">Alertas por Voz</p>
+                      <p className="text-xs text-muted-foreground">
+                        ISA fala quando o ônibus está chegando
+                      </p>
+                    </div>
+                  </div>
+                  <Switch 
+                    checked={voiceEnabled} 
+                    onCheckedChange={setVoiceEnabled}
+                  />
+                </div>
+
+                {/* Notifications */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     {alertsEnabled ? (
@@ -533,9 +713,9 @@ export default function RotinaInteligente() {
                       <BellOff className="w-5 h-5 text-muted-foreground" />
                     )}
                     <div>
-                      <p className="font-medium">Alertas Automáticos</p>
+                      <p className="font-medium">Notificações</p>
                       <p className="text-xs text-muted-foreground">
-                        ISA avisa quando for hora de sair
+                        Avisos automáticos
                       </p>
                     </div>
                   </div>
@@ -545,14 +725,14 @@ export default function RotinaInteligente() {
                   />
                 </div>
 
-                <div className="flex gap-2">
+                <div className="pt-2 flex gap-2">
                   <Button 
                     variant="outline" 
                     className="flex-1 gap-2"
-                    onClick={() => setShowConfig(true)}
+                    onClick={() => { resetConfig(); setShowConfig(true); }}
                   >
                     <Settings className="w-4 h-4" />
-                    Editar Rotina
+                    Alterar Rotina
                   </Button>
                 </div>
               </CardContent>
@@ -560,155 +740,256 @@ export default function RotinaInteligente() {
           </motion.div>
         )}
 
-        {/* Route Steps */}
-        {routeStatus?.steps && routeStatus.steps.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Card className="border-0 shadow-lg">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Route className="w-5 h-5 text-primary" />
-                  Passo a passo
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {routeStatus.steps.slice(0, 5).map((step, index) => {
-                  const ModeIcon = step.travelMode === 'TRANSIT' ? Bus 
-                    : step.travelMode === 'WALKING' ? Footprints : Car;
-                  
-                  return (
-                    <div key={index} className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <ModeIcon className="w-4 h-4 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm">{step.instruction}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {step.distance} • {step.duration}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
+        {/* Info Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-sm">Dados em tempo real</p>
+                  <p className="text-xs text-muted-foreground">
+                    As informações são atualizadas automaticamente a cada 30 segundos usando a API oficial Olho Vivo da SPTrans.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
 
       {/* Configuration Dialog */}
       <Dialog open={showConfig} onOpenChange={setShowConfig}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5 text-primary" />
-              Configurar Rotina
+              <Bus className="w-5 h-5 text-primary" />
+              {configStep === 'linha' && 'Escolha sua linha'}
+              {configStep === 'parada' && 'Escolha o ponto'}
+              {configStep === 'horario' && 'Configure horários'}
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <HomeIcon className="w-4 h-4" />
-                Endereço de Casa
-              </Label>
-              <AddressAutocomplete
-                value={enderecoCasa}
-                onChange={setEnderecoCasa}
-                placeholder="Digite seu endereço de casa..."
-                icon={<HomeIcon className="w-4 h-4" />}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Building2 className="w-4 h-4" />
-                Endereço do Trabalho
-              </Label>
-              <AddressAutocomplete
-                value={enderecoTrabalho}
-                onChange={setEnderecoTrabalho}
-                placeholder="Digite o endereço do trabalho..."
-                icon={<Building2 className="w-4 h-4" />}
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  Horário de Chegada
-                </Label>
-                <Input
-                  type="time"
-                  value={horarioTrabalho}
-                  onChange={(e) => setHorarioTrabalho(e.target.value)}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Footprints className="w-4 h-4" />
-                  Tempo até o ponto
-                </Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="number"
-                    min={1}
-                    max={60}
-                    value={tempoAtePonto}
-                    onChange={(e) => setTempoAtePonto(Number(e.target.value))}
-                    className="w-20"
-                  />
-                  <span className="text-sm text-muted-foreground">min</span>
+          <div className="flex-1 overflow-y-auto space-y-4 pt-2">
+            {/* Step 1: Search Line */}
+            {configStep === 'linha' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Buscar linha de ônibus</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Ex: 8000, Lapa, Terminal..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && searchLines()}
+                    />
+                    <Button onClick={searchLines} disabled={isSearching}>
+                      {isSearching ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Search className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Modo de Transporte</Label>
-              <Select value={modoTransporte} onValueChange={setModoTransporte}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="transit">
-                    <div className="flex items-center gap-2">
-                      <Bus className="w-4 h-4" />
-                      Transporte Público
+
+                {searchResults.length > 0 && (
+                  <ScrollArea className="h-64">
+                    <div className="space-y-2">
+                      {searchResults.map((line) => (
+                        <button
+                          key={`${line.codigoLinha}-${line.sentidoCodigo}`}
+                          className="w-full p-3 text-left bg-muted/50 hover:bg-muted rounded-xl transition-colors"
+                          onClick={() => handleSelectLine(line)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-primary">{line.letreiro}</Badge>
+                              <span className="text-sm font-medium">{line.sentido}</span>
+                            </div>
+                            <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {line.terminalPrincipal} → {line.terminalSecundario}
+                          </p>
+                        </button>
+                      ))}
                     </div>
-                  </SelectItem>
-                  <SelectItem value="driving">
-                    <div className="flex items-center gap-2">
-                      <Car className="w-4 h-4" />
-                      Carro
+                  </ScrollArea>
+                )}
+
+                <div className="pt-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full gap-2"
+                    onClick={getUserLocation}
+                    disabled={isLoadingLocation}
+                  >
+                    {isLoadingLocation ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Locate className="w-4 h-4" />
+                    )}
+                    Usar minha localização
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {/* Step 2: Select Stop */}
+            {configStep === 'parada' && (
+              <>
+                <div className="p-3 bg-primary/10 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Bus className="w-4 h-4 text-primary" />
+                    <span className="font-medium">{selectedLine?.letreiro}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {selectedLine?.terminalPrincipal} → {selectedLine?.terminalSecundario}
+                  </p>
+                </div>
+
+                <Button 
+                  variant="outline" 
+                  className="w-full gap-2"
+                  onClick={getUserLocation}
+                  disabled={isLoadingLocation}
+                >
+                  {isLoadingLocation ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Locate className="w-4 h-4" />
+                  )}
+                  Buscar paradas próximas
+                </Button>
+
+                {lineStops.length > 0 && (
+                  <ScrollArea className="h-52">
+                    <div className="space-y-2">
+                      {lineStops.map((stop) => (
+                        <button
+                          key={stop.codigoParada}
+                          className={cn(
+                            "w-full p-3 text-left rounded-xl transition-colors",
+                            selectedStop?.codigoParada === stop.codigoParada
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted/50 hover:bg-muted"
+                          )}
+                          onClick={() => setSelectedStop(stop)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium text-sm">{stop.nome}</span>
+                            {stop.distancia && (
+                              <Badge variant="outline" className={selectedStop?.codigoParada === stop.codigoParada ? "border-primary-foreground/50" : ""}>
+                                {stop.distancia}m
+                              </Badge>
+                            )}
+                          </div>
+                          {stop.endereco && (
+                            <p className={cn(
+                              "text-xs mt-1",
+                              selectedStop?.codigoParada === stop.codigoParada 
+                                ? "text-primary-foreground/80" 
+                                : "text-muted-foreground"
+                            )}>
+                              {stop.endereco}
+                            </p>
+                          )}
+                        </button>
+                      ))}
                     </div>
-                  </SelectItem>
-                  <SelectItem value="walking">
-                    <div className="flex items-center gap-2">
-                      <Footprints className="w-4 h-4" />
-                      A pé
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <Button 
-              onClick={handleSaveRoutine} 
-              className="w-full gap-2"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <CheckCircle2 className="w-4 h-4" />
-              )}
-              Salvar Rotina
-            </Button>
+                  </ScrollArea>
+                )}
+
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setConfigStep('linha')}>
+                    Voltar
+                  </Button>
+                  <Button 
+                    className="flex-1"
+                    disabled={!selectedStop}
+                    onClick={() => setConfigStep('horario')}
+                  >
+                    Continuar
+                  </Button>
+                </div>
+              </>
+            )}
+
+            {/* Step 3: Configure Times */}
+            {configStep === 'horario' && (
+              <>
+                <div className="p-3 bg-primary/10 rounded-xl space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Bus className="w-4 h-4 text-primary" />
+                    <span className="font-medium">{selectedLine?.letreiro}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MapPinned className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">{selectedStop?.nome}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Horário de chegada no trabalho
+                    </Label>
+                    <Input
+                      type="time"
+                      value={horarioTrabalho}
+                      onChange={(e) => setHorarioTrabalho(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4" />
+                      Tempo até o ponto (minutos)
+                    </Label>
+                    <Select 
+                      value={tempoAtePonto.toString()} 
+                      onValueChange={(v) => setTempoAtePonto(Number(v))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5">5 minutos</SelectItem>
+                        <SelectItem value="10">10 minutos</SelectItem>
+                        <SelectItem value="15">15 minutos</SelectItem>
+                        <SelectItem value="20">20 minutos</SelectItem>
+                        <SelectItem value="25">25 minutos</SelectItem>
+                        <SelectItem value="30">30 minutos</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button variant="outline" onClick={() => setConfigStep('parada')}>
+                    Voltar
+                  </Button>
+                  <Button 
+                    className="flex-1 gap-2"
+                    onClick={handleSaveRoutine}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )}
+                    Salvar Rotina
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
