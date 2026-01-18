@@ -1,8 +1,10 @@
 // InovaFinance TTS Service for Brazilian Portuguese voice
-// Uses the custom TTS API via edge function
+// Uses ElevenLabs for high-quality female Brazilian voice via edge function
 
-import { supabase } from '@/integrations/supabase/client';
 import { playAudioExclusively, stopAllAudio, isGlobalAudioPlaying } from './audioManager';
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 /**
  * Format currency values for natural Brazilian Portuguese speech
@@ -82,7 +84,8 @@ function cleanTextForTts(text: string): string {
 }
 
 /**
- * Speak text using InovaFinance TTS with fallback to native TTS
+ * Speak text using ElevenLabs Brazilian Portuguese female voice
+ * Uses direct fetch to get binary audio (not JSON)
  */
 export async function speakWithElevenLabs(text: string): Promise<void> {
   const cleanText = cleanTextForTts(text);
@@ -96,33 +99,43 @@ export async function speakWithElevenLabs(text: string): Promise<void> {
   stopAllAudio();
 
   try {
-    console.log('TTS: Requesting audio for:', cleanText.substring(0, 50) + '...');
+    console.log('ElevenLabs TTS: Requesting audio for:', cleanText.substring(0, 50) + '...');
     
-    const { data, error } = await supabase.functions.invoke('text-to-speech', {
-      body: { text: cleanText }
+    // Use fetch directly for binary audio response
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ text: cleanText }),
     });
 
-    if (error) {
-      console.error('TTS Error:', error);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('ElevenLabs TTS Error:', errorText);
       // Fallback to native TTS
       return speakWithNativeTts(cleanText);
     }
 
-    if (!data?.audio_url) {
-      // Check for API errors
-      if (data?.error) {
-        console.warn('TTS API error, using native TTS:', data.error);
-        return speakWithNativeTts(cleanText);
-      }
-      throw new Error('No audio URL received');
-    }
-
-    // Create audio element and play exclusively from URL
-    const audio = new Audio(data.audio_url);
+    // Get audio as blob
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
     
+    // Clean up URL when audio ends
+    audio.onended = () => {
+      URL.revokeObjectURL(audioUrl);
+    };
+    
+    audio.onerror = () => {
+      URL.revokeObjectURL(audioUrl);
+    };
+
     return playAudioExclusively(audio);
   } catch (error) {
-    console.error('TTS Error, falling back to native:', error);
+    console.error('ElevenLabs TTS Error, falling back to native:', error);
     // Fallback to native browser TTS
     return speakWithNativeTts(cleanText);
   }
@@ -132,7 +145,7 @@ export async function speakWithElevenLabs(text: string): Promise<void> {
  * Fallback native browser TTS for Brazilian Portuguese
  */
 function speakWithNativeTts(text: string): Promise<void> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (!window.speechSynthesis) {
       console.error('Native TTS not supported');
       resolve();
@@ -185,3 +198,8 @@ export function stopElevenLabsSpeaking(): void {
 export function isElevenLabsSpeaking(): boolean {
   return isGlobalAudioPlaying() || (window.speechSynthesis?.speaking ?? false);
 }
+
+/**
+ * Format currency to speech (exported for use in other modules)
+ */
+export { formatCurrencyForSpeech, cleanTextForTts };
