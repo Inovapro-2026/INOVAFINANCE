@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { speak as speakTts, stopSpeaking as stopTtsSpeaking, isSpeaking as isTtsSpeaking } from '@/services/ttsService';
+import { currencyToSpeech } from '@/services/isaVoiceService';
 import { SchedulePaymentModal } from '@/components/SchedulePaymentModal';
 import { addScheduledPayment } from '@/lib/plannerDb';
 import { ExpenseAnimation } from '@/components/animations/ExpenseAnimation';
@@ -553,7 +554,7 @@ export default function AI() {
             description: `R$ ${foundPayment.amount.toFixed(2)} registrado como despesa`
           });
           
-          speak(`Pronto! Marquei ${foundPayment.name} de ${foundPayment.amount.toFixed(0)} reais como pago. Já sumiu da sua lista de contas desse mês! 👍`);
+          speak(`Pronto! Marquei ${foundPayment.name} de ${currencyToSpeech(foundPayment.amount)} como pago. Já sumiu da sua lista de contas desse mês! 👍`);
           
           // Show expense animation
           setShowExpenseAnimation(true);
@@ -612,7 +613,7 @@ export default function AI() {
 
           // Check if expense exceeds total available - reject it
           if (args.amount > totalAvailable) {
-            speak(`Eita! Você não pode gastar ${args.amount} reais porque você só tem ${totalAvailable.toFixed(0)} reais disponíveis no total. Não vou deixar você se endividar! 😤`);
+            speak(`Eita! Você não pode gastar ${currencyToSpeech(args.amount)} porque você só tem ${currencyToSpeech(totalAvailable)} disponíveis no total. Não vou deixar você se endividar!`);
             setPendingTransaction(null);
             setStatusText('Pronta para ajudar');
             return;
@@ -621,30 +622,30 @@ export default function AI() {
           // Expense fits but ISA is annoyed and gives tip
           if (realDebitBalance <= 0 && realCreditAvailable <= 0) {
             // No balance at all
-            speak(`Atenção! Você não tem saldo no débito nem limite no crédito. Nada de gastar hoje! 😤`);
+            speak(`Atenção! Você não tem saldo no débito nem limite no crédito. Nada de gastar hoje!`);
             setPendingTransaction(null);
             setStatusText('Pronta para ajudar');
             return;
           } else if (realDebitBalance <= 0 && args.amount <= realCreditAvailable) {
             // No debit but fits in credit - annoyed
-            speak(`Hum... mais ${args.amount} reais no crédito? 😒 Seu débito tá zerado! Tá bom, confirma aí... ${randomTip}`);
+            speak(`Hum... mais ${currencyToSpeech(args.amount)} no crédito? Seu débito tá zerado! Tá bom, confirma aí... ${randomTip}`);
           } else if (args.amount > realDebitBalance && user.hasCreditCard && args.amount <= realCreditAvailable) {
             // Exceeds debit but fits credit - warning
-            speak(`Olha só, ${args.amount} reais não cabe no débito que tem ${realDebitBalance.toFixed(0)}. Vai no crédito então... 😤 ${randomTip}`);
+            speak(`Olha só, ${currencyToSpeech(args.amount)} não cabe no débito que tem ${currencyToSpeech(realDebitBalance)}. Vai no crédito então... ${randomTip}`);
           } else if (args.amount > realDebitBalance && args.amount > realCreditAvailable && canInstallment) {
             // Exceeds both but can installment
-            speak(`Ui! ${args.amount} reais é muito! Débito tem ${realDebitBalance.toFixed(0)} e crédito ${realCreditAvailable.toFixed(0)}. Mas dá pra parcelar em ${minInstallments}x. ${randomTip}`);
+            speak(`Ui! ${currencyToSpeech(args.amount)} é muito! Débito tem ${currencyToSpeech(realDebitBalance)} e crédito ${currencyToSpeech(realCreditAvailable)}. Mas dá pra parcelar em ${minInstallments}x. ${randomTip}`);
           } else {
             // Normal expense - still annoyed but less
             if (args.amount > 100) {
-              speak(`Gastando ${args.amount} reais em ${args.category}? 😒 Tá certo... confirma aí. ${randomTip}`);
+              speak(`Gastando ${currencyToSpeech(args.amount)} em ${args.category}? Tá certo... confirma aí. ${randomTip}`);
             } else {
-              speak(`${args.amount} reais em ${args.category}. Pequeno gasto, mas fica de olho! ${randomTip}`);
+              speak(`${currencyToSpeech(args.amount)} em ${args.category}. Pequeno gasto, mas fica de olho! ${randomTip}`);
             }
           }
         } else {
           // Income - always positive
-          speak(`Maravilha! Registrar ganho de ${args.amount} reais em ${args.category}? Isso vai melhorar seu saldo! 🎉`);
+          speak(`Maravilha! Registrar ganho de ${currencyToSpeech(args.amount)} em ${args.category}? Isso vai melhorar seu saldo!`);
         }
     } else {
       setStatusText('Pronta para ajudar');
