@@ -194,15 +194,14 @@ export default function Card() {
             className="absolute inset-0"
             style={{ backfaceVisibility: 'hidden' }}
           >
-            <div className="w-full h-full rounded-2xl p-6 bg-gradient-to-br from-[#0a0a0f] via-[#0d0d15] to-[#05050a] border border-white/5 shadow-[0_20px_50px_rgba(0,0,0,0.8),0_0_100px_rgba(139,92,246,0.1)] overflow-hidden">
-              {/* Holographic Effect */}
-              <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 via-transparent to-secondary/10 opacity-60" />
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-500/5 via-transparent to-transparent" />
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-blue-500/5 via-transparent to-transparent" />
+            <div className="w-full h-full rounded-2xl p-6 bg-black border border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.9)] overflow-hidden">
+              {/* Subtle metallic shine */}
+              <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 via-black to-zinc-950" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.03] to-transparent" />
               
               {/* Animated shine effect */}
               <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute -inset-full bg-gradient-to-r from-transparent via-white/5 to-transparent rotate-12 animate-[shimmer_3s_ease-in-out_infinite]" />
+                <div className="absolute -inset-full bg-gradient-to-r from-transparent via-white/[0.05] to-transparent rotate-12 animate-[shimmer_3s_ease-in-out_infinite]" />
               </div>
               
               {/* Card Content */}
@@ -210,12 +209,23 @@ export default function Card() {
                 {/* Top Row */}
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/30">
-                      <Shield className="w-6 h-6" />
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-zinc-700 to-zinc-800 flex items-center justify-center border border-zinc-600">
+                      <Shield className="w-6 h-6 text-zinc-300" />
                     </div>
-                    <span className="font-display font-bold text-lg tracking-wide">INOVAPRO BLACK</span>
+                    <span 
+                      className="font-display font-bold text-lg tracking-wide"
+                      style={{
+                        background: 'linear-gradient(180deg, #e8e8e8 0%, #a8a8a8 50%, #888888 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                        filter: 'drop-shadow(0 1px 1px rgba(255,255,255,0.1))'
+                      }}
+                    >
+                      INOVAPRO BLACK
+                    </span>
                   </div>
-                  <Wifi className="w-6 h-6 text-white/40 rotate-90" />
+                  <Wifi className="w-6 h-6 text-zinc-500 rotate-90" />
                 </div>
 
                 {/* Chip */}
@@ -231,7 +241,16 @@ export default function Card() {
 
                 {/* Card Number */}
                 <div className="mt-6">
-                  <p className="font-mono text-lg tracking-[0.25em] text-white/90">
+                  <p 
+                    className="font-mono text-lg tracking-[0.25em]"
+                    style={{
+                      background: 'linear-gradient(180deg, #d0d0d0 0%, #909090 50%, #707070 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      textShadow: '0 2px 4px rgba(0,0,0,0.6)',
+                      filter: 'drop-shadow(0 1px 1px rgba(255,255,255,0.08))'
+                    }}
+                  >
                     {formatCardNumber()}
                   </p>
                 </div>
@@ -239,20 +258,39 @@ export default function Card() {
                 {/* Bottom Row */}
                 <div className="mt-auto flex justify-between items-end">
                   <div>
-                    <p className="text-[10px] text-white/40 uppercase mb-1 tracking-wider">Titular</p>
-                    <p className="font-medium text-sm uppercase tracking-wide text-white/90">
+                    <p className="text-[10px] text-zinc-500 uppercase mb-1 tracking-wider">Titular</p>
+                    <p 
+                      className="font-medium text-sm uppercase tracking-wide"
+                      style={{
+                        background: 'linear-gradient(180deg, #e0e0e0 0%, #a0a0a0 50%, #808080 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                        filter: 'drop-shadow(0 1px 1px rgba(255,255,255,0.1))'
+                      }}
+                    >
                       {user?.fullName || 'NOME DO TITULAR'}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] text-white/40 uppercase mb-1 tracking-wider">Validade</p>
-                    <p className="font-mono text-sm text-white/90">{getExpiryDate()}</p>
+                    <p className="text-[10px] text-zinc-500 uppercase mb-1 tracking-wider">Validade</p>
+                    <p 
+                      className="font-mono text-sm"
+                      style={{
+                        background: 'linear-gradient(180deg, #d0d0d0 0%, #909090 50%, #707070 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+                      }}
+                    >
+                      {getExpiryDate()}
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* Bottom accent line */}
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-primary via-secondary to-primary" />
+              {/* Bottom accent line - silver */}
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-zinc-600 via-zinc-400 to-zinc-600" />
             </div>
           </div>
 
