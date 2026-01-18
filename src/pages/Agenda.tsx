@@ -316,15 +316,57 @@ export default function Agenda() {
     }
   }, []);
 
-  // Schedule notification
-  const scheduleNotification = (item: AgendaItem) => {
-    const itemDateTime = new Date(`${item.data}T${item.hora}`);
-    const notifyTime = new Date(itemDateTime.getTime() - (item.notificacao_minutos * 60 * 1000));
+  // Check for pending notifications that should fire now
+  const checkPendingNotifications = useCallback(async () => {
+    if (!user) return;
+    
+    const userMatricula = user.userId;
     const now = new Date();
+    const currentDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    
+    const todayItems = await getAgendaItemsForDate(userMatricula, currentDateStr);
+    
+    todayItems.forEach(item => {
+      if (item.concluido) return;
+      
+      const [hours, minutes] = item.hora.split(':').map(Number);
+      const itemTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+      const notifyTime = new Date(itemTime.getTime() - (item.notificacao_minutos * 60 * 1000));
+      
+      // If notification time has passed but item is not completed, send now
+      const timeDiff = now.getTime() - notifyTime.getTime();
+      if (timeDiff >= 0 && timeDiff < 60000) { // Within the last minute
+        sendNotification(
+          `⏰ ${item.titulo}`,
+          `Agora às ${item.hora}`,
+          `agenda-${item.id}`
+        );
+      }
+    });
+  }, [user]);
+
+  // Check notifications on mount and periodically
+  useEffect(() => {
+    checkPendingNotifications();
+    
+    // Check every 30 seconds for pending notifications
+    const interval = setInterval(checkPendingNotifications, 30000);
+    
+    return () => clearInterval(interval);
+  }, [checkPendingNotifications]);
+
+  // Schedule notification with setTimeout as backup for near-future notifications
+  const scheduleNotification = (item: AgendaItem) => {
+    const now = new Date();
+    const [hours, minutes] = item.hora.split(':').map(Number);
+    const [year, month, day] = item.data.split('-').map(Number);
+    const itemDateTime = new Date(year, month - 1, day, hours, minutes);
+    const notifyTime = new Date(itemDateTime.getTime() - (item.notificacao_minutos * 60 * 1000));
     
     const delay = notifyTime.getTime() - now.getTime();
     
-    if (delay > 0) {
+    // Only schedule if within 24 hours (86400000ms)
+    if (delay > 0 && delay < 86400000) {
       setTimeout(() => {
         sendNotification(
           `⏰ ${item.titulo}`,
