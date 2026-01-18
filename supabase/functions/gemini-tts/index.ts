@@ -7,6 +7,49 @@ const corsHeaders = {
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
+// Convert PCM to WAV format
+function pcmToWav(pcmData: Uint8Array, sampleRate: number = 24000, numChannels: number = 1, bitsPerSample: number = 16): Uint8Array {
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const dataSize = pcmData.length;
+  const headerSize = 44;
+  const fileSize = headerSize + dataSize;
+  
+  const buffer = new ArrayBuffer(fileSize);
+  const view = new DataView(buffer);
+  
+  // RIFF header
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, fileSize - 8, true);
+  writeString(view, 8, 'WAVE');
+  
+  // fmt chunk
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true); // chunk size
+  view.setUint16(20, 1, true); // audio format (PCM)
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  
+  // data chunk
+  writeString(view, 36, 'data');
+  view.setUint32(40, dataSize, true);
+  
+  // Copy PCM data
+  const wavBytes = new Uint8Array(buffer);
+  wavBytes.set(pcmData, headerSize);
+  
+  return wavBytes;
+}
+
+function writeString(view: DataView, offset: number, str: string) {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i));
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -81,6 +124,27 @@ serve(async (req) => {
     const audioBytes = Uint8Array.from(atob(audioData.data), (c) => c.charCodeAt(0));
     const mimeType = audioData.mimeType || "audio/mp3";
 
+    console.log("Gemini TTS raw audio size:", audioBytes.length, "type:", mimeType);
+
+    // If the audio is PCM (L16), convert to WAV for browser playback
+    if (mimeType.includes("L16") || mimeType.includes("pcm")) {
+      // Extract sample rate from mimeType if available (e.g., "audio/L16;codec=pcm;rate=24000")
+      const rateMatch = mimeType.match(/rate=(\d+)/);
+      const sampleRate = rateMatch ? parseInt(rateMatch[1]) : 24000;
+      
+      console.log("Converting PCM to WAV, sample rate:", sampleRate);
+      const wavBytes = pcmToWav(audioBytes, sampleRate);
+      console.log("Gemini TTS WAV success, size:", wavBytes.length);
+
+      return new Response(new Uint8Array(wavBytes).buffer as ArrayBuffer, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "audio/wav",
+        },
+      });
+    }
+
+    // Return audio as-is for other formats (mp3, etc.)
     console.log("Gemini TTS success, audio size:", audioBytes.length, "type:", mimeType);
 
     return new Response(audioBytes, {
