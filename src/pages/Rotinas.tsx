@@ -236,14 +236,103 @@ export default function Rotinas() {
     setIsListening(false);
   }, []);
 
-  // Process voice command
+  // Process voice command with agenda query support
   const processVoiceCommand = async (command: string) => {
     if (!user) return;
     
     setIsLoading(true);
     
     try {
-      // Call edge function to parse the command
+      const normalizedCommand = command.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const userMatricula = user.userId;
+
+      // Check for agenda queries first
+      const isAgendaQuery = normalizedCommand.includes('o que tenho') || 
+                           normalizedCommand.includes('minha agenda') ||
+                           normalizedCommand.includes('tenho pra fazer') ||
+                           normalizedCommand.includes('como esta minha agenda') ||
+                           normalizedCommand.includes('como está minha agenda');
+      
+      if (isAgendaQuery) {
+        // Determine time of day filter
+        const isMorning = normalizedCommand.includes('manha') || normalizedCommand.includes('manhã');
+        const isAfternoon = normalizedCommand.includes('tarde');
+        const isEvening = normalizedCommand.includes('noite');
+        
+        // Get today's date
+        const today = getTodayDate();
+        
+        // Fetch agenda items
+        const { data: agendaItems } = await supabase
+          .from('agenda_items')
+          .select('*')
+          .eq('user_matricula', userMatricula)
+          .eq('data', today)
+          .order('hora', { ascending: true });
+
+        // Filter by time of day if specified
+        let filteredItems = agendaItems || [];
+        let timeLabel = 'hoje';
+        
+        if (isMorning) {
+          filteredItems = filteredItems.filter((item: any) => {
+            const hour = parseInt(item.hora.split(':')[0]);
+            return hour < 12;
+          });
+          timeLabel = 'pela manhã';
+        } else if (isAfternoon) {
+          filteredItems = filteredItems.filter((item: any) => {
+            const hour = parseInt(item.hora.split(':')[0]);
+            return hour >= 12 && hour < 18;
+          });
+          timeLabel = 'à tarde';
+        } else if (isEvening) {
+          filteredItems = filteredItems.filter((item: any) => {
+            const hour = parseInt(item.hora.split(':')[0]);
+            return hour >= 18;
+          });
+          timeLabel = 'à noite';
+        }
+
+        // Combine with today's routines
+        const pendingRotinas = todayRotinas.filter(r => !isRotinaCompletedToday(r.id, completions));
+        let filteredRotinas = pendingRotinas;
+        
+        if (isMorning) {
+          filteredRotinas = pendingRotinas.filter(r => {
+            const hour = parseInt(r.hora.split(':')[0]);
+            return hour < 12;
+          });
+        } else if (isAfternoon) {
+          filteredRotinas = pendingRotinas.filter(r => {
+            const hour = parseInt(r.hora.split(':')[0]);
+            return hour >= 12 && hour < 18;
+          });
+        } else if (isEvening) {
+          filteredRotinas = pendingRotinas.filter(r => {
+            const hour = parseInt(r.hora.split(':')[0]);
+            return hour >= 18;
+          });
+        }
+
+        // Build response
+        const totalItems = filteredItems.length + filteredRotinas.length;
+        
+        if (totalItems === 0) {
+          speakTts(`Você não tem nada agendado ${timeLabel}.`);
+        } else {
+          const agendaList = filteredItems.map((i: any) => `${i.titulo} às ${formatTime(i.hora)}`);
+          const rotinaList = filteredRotinas.map(r => `${r.titulo} às ${formatTime(r.hora)}`);
+          const allItems = [...agendaList, ...rotinaList].join(', ');
+          
+          speakTts(`Para ${timeLabel} você tem: ${allItems}.`);
+        }
+        
+        setIsLoading(false);
+        return;
+      }
+
+      // Call edge function to parse the command for other types
       const { data, error } = await supabase.functions.invoke('parse-agenda-command', {
         body: { message: command }
       });
@@ -251,8 +340,6 @@ export default function Rotinas() {
       if (error) throw error;
 
       console.log('Parsed command:', data);
-
-      const userMatricula = user.userId;
       
       if (data.tipo === 'rotina') {
         // Add routine

@@ -283,19 +283,25 @@ export default function AssistenteVoz() {
         return;
       }
 
-      // Check for query commands
-      const queryKeywords = ['o que tenho', 'quais compromissos', 'minha agenda', 'meus lembretes', 'compromissos de'];
+      // Check for query commands with time-of-day support
+      const queryKeywords = ['o que tenho', 'quais compromissos', 'minha agenda', 'meus lembretes', 'compromissos de', 'tenho pra fazer', 'como esta minha agenda', 'como está minha agenda'];
       const isQueryCommand = queryKeywords.some(keyword => normalizedCommand.includes(keyword));
 
       if (isQueryCommand) {
-        // Determine query type
+        // Determine time of day filter
+        const isMorning = normalizedCommand.includes('manha') || normalizedCommand.includes('manhã');
+        const isAfternoon = normalizedCommand.includes('tarde');
+        const isEvening = normalizedCommand.includes('noite');
+        
+        // Determine query type (today/tomorrow/week)
         let queryType: 'hoje' | 'amanha' | 'semana' = 'hoje';
         if (normalizedCommand.includes('amanha')) {
           queryType = 'amanha';
         } else if (normalizedCommand.includes('semana')) {
           queryType = 'semana';
         }
-        await handleConsulta(queryType);
+        
+        await handleConsulta(queryType, { morning: isMorning, afternoon: isAfternoon, evening: isEvening });
       } else {
         // Unknown command - suggest what the assistant can do
         const msg = "Diga 'me lembre de...' ou 'agendar...' para criar lembretes e rotinas.";
@@ -373,8 +379,8 @@ export default function AssistenteVoz() {
     }
   };
 
-  // Handle consulta (query)
-  const handleConsulta = async (tipo: 'hoje' | 'amanha' | 'semana') => {
+  // Handle consulta (query) with time-of-day filter
+  const handleConsulta = async (tipo: 'hoje' | 'amanha' | 'semana', timeFilter?: { morning?: boolean; afternoon?: boolean; evening?: boolean }) => {
     if (!user) return;
 
     const formatLocalDate = (d: Date) => {
@@ -399,17 +405,39 @@ export default function AssistenteVoz() {
       .eq('data', dateStr)
       .order('hora', { ascending: true });
 
-    const dayLabel = tipo === 'hoje' ? 'hoje' : 'amanhã';
+    // Apply time-of-day filter
+    let filteredItems = items || [];
+    let timeLabel = tipo === 'hoje' ? 'hoje' : 'amanhã';
+    
+    if (timeFilter?.morning) {
+      filteredItems = filteredItems.filter((item: any) => {
+        const hour = parseInt(item.hora.split(':')[0]);
+        return hour < 12;
+      });
+      timeLabel = tipo === 'hoje' ? 'pela manhã' : 'amanhã de manhã';
+    } else if (timeFilter?.afternoon) {
+      filteredItems = filteredItems.filter((item: any) => {
+        const hour = parseInt(item.hora.split(':')[0]);
+        return hour >= 12 && hour < 18;
+      });
+      timeLabel = tipo === 'hoje' ? 'à tarde' : 'amanhã à tarde';
+    } else if (timeFilter?.evening) {
+      filteredItems = filteredItems.filter((item: any) => {
+        const hour = parseInt(item.hora.split(':')[0]);
+        return hour >= 18;
+      });
+      timeLabel = tipo === 'hoje' ? 'à noite' : 'amanhã à noite';
+    }
 
-    if (!items || items.length === 0) {
-      const msg = `Você não tem lembretes para ${dayLabel}.`;
+    if (filteredItems.length === 0) {
+      const msg = `Você não tem nada agendado ${timeLabel}.`;
       if (voiceEnabled) speakTts(msg);
       toast.info(msg);
     } else {
-      const itemList = items.map((i: any) => `${i.titulo} às ${formatTime(i.hora)}`).join(', ');
-      const msg = `Para ${dayLabel} você tem: ${itemList}.`;
+      const itemList = filteredItems.map((i: any) => `${i.titulo} às ${formatTime(i.hora)}`).join(', ');
+      const msg = `Para ${timeLabel} você tem: ${itemList}.`;
       if (voiceEnabled) speakTts(msg);
-      toast.success(`${items.length} lembrete(s) para ${dayLabel}`);
+      toast.success(`${filteredItems.length} item(s) ${timeLabel}`);
     }
   };
 

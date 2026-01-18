@@ -1,4 +1,6 @@
-import { playAudioExclusively, stopAllAudio, isGlobalAudioPlaying, speakTextExclusively } from './audioManager';
+// TTS Service - Uses ElevenLabs with Gemini fallback (NO native Google TTS)
+import { playAudioExclusively, stopAllAudio, isGlobalAudioPlaying } from './audioManager';
+import { playCachedPhrase, COMMON_PHRASES } from './cachedAudioService';
 
 // Cache for audio to avoid repeated API calls
 const audioCache = new Map<string, string>();
@@ -11,37 +13,75 @@ export interface TTSResult {
   error: string | null;
 }
 
-async function playAudioOrFallback(audio: HTMLAudioElement, fallbackText: string) {
-  try {
-    await playAudioExclusively(audio);
-  } catch (err: any) {
-    console.error('TTS playback error:', err);
+// Normalize text to check for cached phrases
+function normalizeTextForCache(text: string): string {
+  return text.toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/g, '');
+}
 
-    // Common on mobile/Safari/Chrome if play() happens after async work
-    if (err?.name === 'NotAllowedError' || String(err).includes('NotAllowedError')) {
-      console.warn('TTS: Autoplay blocked; using native SpeechSynthesis fallback');
-      speakTextExclusively(fallbackText, { lang: 'pt-BR' });
-      return;
+// Check if text matches a cached phrase
+function findCachedPhraseKey(text: string): keyof typeof COMMON_PHRASES | null {
+  const normalizedInput = normalizeTextForCache(text);
+  
+  for (const [key, phrase] of Object.entries(COMMON_PHRASES)) {
+    const normalizedPhrase = normalizeTextForCache(phrase);
+    if (normalizedInput === normalizedPhrase) {
+      return key as keyof typeof COMMON_PHRASES;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Try ElevenLabs TTS via edge function (with 5 API key rotation)
+ */
+async function tryElevenLabsTTS(text: string): Promise<HTMLAudioElement | null> {
+  try {
+    console.log('TTS: Trying ElevenLabs for:', text.substring(0, 50));
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ text: text.trim() }),
+    });
+
+    if (!response.ok) {
+      console.warn('TTS: ElevenLabs failed, status:', response.status);
+      return null;
     }
 
-    throw err;
+    const contentType = response.headers.get('Content-Type');
+    if (!contentType?.includes('audio')) {
+      console.warn('TTS: ElevenLabs returned non-audio response');
+      return null;
+    }
+
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    
+    audio.onended = () => URL.revokeObjectURL(audioUrl);
+    audio.onerror = () => URL.revokeObjectURL(audioUrl);
+    
+    return audio;
+  } catch (err) {
+    console.error('TTS: ElevenLabs error:', err);
+    return null;
   }
 }
 
 /**
- * Use native browser TTS as the primary fallback
- */
-function speakWithNative(text: string): void {
-  console.log('TTS: Using native speech synthesis');
-  speakTextExclusively(text, { lang: 'pt-BR', rate: 1.0 });
-}
-
-/**
- * Try Gemini/Google TTS via edge function
+ * Try Gemini TTS via edge function
  */
 async function tryGeminiTTS(text: string): Promise<HTMLAudioElement | null> {
   try {
-    console.log('TTS: Trying Gemini TTS for:', text.substring(0, 50));
+    console.log('TTS: Trying Gemini for:', text.substring(0, 50));
 
     const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-tts`, {
       method: 'POST',
@@ -54,7 +94,7 @@ async function tryGeminiTTS(text: string): Promise<HTMLAudioElement | null> {
     });
 
     if (!response.ok) {
-      console.warn('TTS: Gemini TTS failed, status:', response.status);
+      console.warn('TTS: Gemini failed, status:', response.status);
       return null;
     }
 
@@ -68,15 +108,19 @@ async function tryGeminiTTS(text: string): Promise<HTMLAudioElement | null> {
     const audioUrl = URL.createObjectURL(audioBlob);
     const audio = new Audio(audioUrl);
     
+    audio.onended = () => URL.revokeObjectURL(audioUrl);
+    audio.onerror = () => URL.revokeObjectURL(audioUrl);
+    
     return audio;
   } catch (err) {
-    console.error('TTS: Gemini TTS error:', err);
+    console.error('TTS: Gemini error:', err);
     return null;
   }
 }
 
 /**
- * Text-to-Speech service - tries Gemini first, then falls back to native
+ * Text-to-Speech service
+ * Priority: 1. Cached phrases → 2. ElevenLabs → 3. Gemini (NO native browser TTS)
  */
 export async function speak(text: string): Promise<HTMLAudioElement | null> {
   if (!text || text.trim() === '') {
@@ -84,29 +128,53 @@ export async function speak(text: string): Promise<HTMLAudioElement | null> {
     return null;
   }
 
-  // Normalize text for caching
-  const cacheKey = text.trim().toLowerCase();
-
-  // Check cache first
-  if (audioCache.has(cacheKey)) {
-    console.log('TTS: Using cached audio');
-    const cachedAudioUrl = audioCache.get(cacheKey)!;
-    const audio = new Audio(cachedAudioUrl);
-    await playAudioOrFallback(audio, text);
-    return audio;
-  }
-
   // Stop any ongoing speech first
   stopAllAudio();
 
-  // Try Gemini TTS first
+  // Check for cached phrase first (saves API tokens)
+  const phraseKey = findCachedPhraseKey(text);
+  if (phraseKey) {
+    console.log('TTS: Using cached phrase:', phraseKey);
+    const success = await playCachedPhrase(phraseKey);
+    if (success) return null; // Audio handled by cached service
+  }
+
+  // Normalize text for memory caching
+  const cacheKey = text.trim().toLowerCase();
+
+  // Check memory cache
+  if (audioCache.has(cacheKey)) {
+    console.log('TTS: Using memory cached audio');
+    const cachedAudioUrl = audioCache.get(cacheKey)!;
+    const audio = new Audio(cachedAudioUrl);
+    await playAudioExclusively(audio);
+    return audio;
+  }
+
+  // Try ElevenLabs first (with 5 API keys rotation)
+  const elevenLabsAudio = await tryElevenLabsTTS(text);
+  
+  if (elevenLabsAudio) {
+    try {
+      const audioUrl = elevenLabsAudio.src;
+      audioCache.set(cacheKey, audioUrl);
+      await playAudioExclusively(elevenLabsAudio);
+      console.log('TTS: ElevenLabs audio played successfully');
+      return elevenLabsAudio;
+    } catch (err) {
+      console.error('TTS: ElevenLabs playback failed:', err);
+    }
+  }
+
+  // Fallback to Gemini TTS
+  console.log('TTS: ElevenLabs unavailable, trying Gemini...');
   const geminiAudio = await tryGeminiTTS(text);
   
   if (geminiAudio) {
     try {
       const audioUrl = geminiAudio.src;
       audioCache.set(cacheKey, audioUrl);
-      await playAudioOrFallback(geminiAudio, text);
+      await playAudioExclusively(geminiAudio);
       console.log('TTS: Gemini audio played successfully');
       return geminiAudio;
     } catch (err) {
@@ -114,9 +182,8 @@ export async function speak(text: string): Promise<HTMLAudioElement | null> {
     }
   }
 
-  // Fallback to native TTS
-  console.log('TTS: Falling back to native speech synthesis');
-  speakWithNative(text);
+  // Both failed - log but don't use native TTS
+  console.error('TTS: Both ElevenLabs and Gemini failed. No audio played.');
   return null;
 }
 
