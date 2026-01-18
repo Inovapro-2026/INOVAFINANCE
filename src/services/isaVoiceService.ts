@@ -54,7 +54,7 @@ export function setVoiceEnabled(enabled: boolean): void {
  * - 0.99 → "noventa e nove centavos"
  */
 export function currencyToSpeech(value: number): string {
-  if (value === 0) return 'zero reais';
+  if (value === 0) return 'zero reáis';
 
   const absValue = Math.abs(value);
   const reais = Math.floor(absValue);
@@ -62,10 +62,10 @@ export function currencyToSpeech(value: number): string {
 
   let result = '';
 
-  // Handle reais
+  // Handle reais - using "reáis" with accent for correct pronunciation
   if (reais > 0) {
     result = numberToWords(reais);
-    result += reais === 1 ? ' real' : ' reais';
+    result += reais === 1 ? ' reál' : ' reáis';
   }
 
   // Handle centavos

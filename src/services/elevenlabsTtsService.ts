@@ -88,13 +88,13 @@ function formatNumberAsCurrency(value: number): string {
   
   let result = '';
   
-  // Integer part
+  // Integer part - using "reáis" with accent for correct TTS pronunciation
   if (intPart === 0 && decPart > 0) {
     // Only cents
   } else if (intPart === 1) {
-    result = 'um real';
+    result = 'um reál';
   } else {
-    result = `${intPart} reais`;
+    result = `${intPart} reáis`;
   }
   
   // Decimal part (centavos)
@@ -109,7 +109,7 @@ function formatNumberAsCurrency(value: number): string {
     }
   }
   
-  return result || 'zero reais';
+  return result || 'zero reáis';
 }
 
 /**

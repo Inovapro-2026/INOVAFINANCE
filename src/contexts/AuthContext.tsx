@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, ReactNod
 import { getProfile, createProfile, updateProfile, type Profile } from '@/lib/db';
 import { clearFinancialGreeted } from '@/services/isaVoiceService';
 import { startSession, endSession } from '@/services/sessionTrackingService';
+import { clearTabGreetings } from '@/services/voiceQueueService';
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimeChannel } from '@supabase/supabase-js';
 interface AuthContextType {
@@ -141,6 +142,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (profile) {
         // Only allow login for approved users
         if (profile.userStatus === 'approved') {
+          // Clear tab greetings for fresh voice greetings on new login
+          clearTabGreetings();
+          clearFinancialGreeted();
+          
           setUser(profile);
           localStorage.setItem('inovabank_matricula', matricula.toString());
           return true;
