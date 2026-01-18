@@ -850,12 +850,12 @@ export default function Planner() {
               onClick={() => setIsSalaryModalOpen(false)}
             />
             <motion.div
-              className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 mx-auto max-w-md"
+              className="fixed inset-x-4 top-1/2 -translate-y-1/2 z-50 mx-auto max-w-md max-h-[85vh] overflow-hidden"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
             >
-              <GlassCard className="p-5 max-h-[80vh] overflow-y-auto">
+              <GlassCard className="p-5 max-h-[85vh] overflow-y-auto pb-8">
                 <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                   <DollarSign className="w-5 h-5 text-primary" />
                   Configurar Pagamentos
