@@ -98,6 +98,7 @@ export default function Login() {
 
   // Play login audio only once per session and only on /login route when NOT authenticated
   const loginAudioPlayedRef = useRef(false);
+  const matriculaInputRef = useRef<HTMLInputElement | null>(null);
   
   useEffect(() => {
     // Wait for auth state to settle
@@ -556,8 +557,31 @@ export default function Login() {
                       Use seu ID de 6 dígitos para acessar
                     </p>
 
-                    {/* PIN Display */}
-                    <div className="flex justify-center gap-2 mb-6">
+                    {/* PIN Display (tap para abrir o teclado do celular) */}
+                    <div
+                      className="relative flex justify-center gap-2 mb-6"
+                      onClick={() => matriculaInputRef.current?.focus()}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') matriculaInputRef.current?.focus();
+                      }}
+                    >
+                      {/* Input invisível para ativar o teclado numérico no mobile */}
+                      <input
+                        ref={matriculaInputRef}
+                        value={matricula}
+                        onChange={(e) => {
+                          const onlyNumbers = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          setMatricula(onlyNumbers);
+                        }}
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoComplete="one-time-code"
+                        aria-label="Matrícula"
+                        className="absolute inset-0 opacity-0"
+                      />
+
                       {[...Array(6)].map((_, i) => (
                         <motion.div
                           key={i}
