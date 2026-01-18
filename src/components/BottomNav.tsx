@@ -11,10 +11,45 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppMode } from '@/contexts/AppModeContext';
+import { speak } from '@/services/ttsService';
+import { useRef, useEffect } from 'react';
+
+// Voice explanations for each tab
+const TAB_GREETINGS: Record<string, string> = {
+  '/': 'Você está na tela inicial. Aqui você vê seu saldo, últimas transações e resumo financeiro.',
+  '/card': 'Cartão de crédito. Aqui você controla seu limite e gastos no crédito.',
+  '/ai': 'Assistente ISA. Fale comigo para registrar gastos, consultar saldo ou tirar dúvidas.',
+  '/planner': 'Planejamento financeiro. Organize suas contas e pagamentos do mês.',
+  '/goals': 'Perfil e metas. Veja seu progresso e configure suas preferências.',
+  '/agenda': 'Sua agenda. Aqui você vê seus compromissos e lembretes do dia.',
+  '/rotinas': 'Suas rotinas. Gerencie tarefas que se repetem diariamente.',
+  '/assistente': 'Assistente de voz. Fale comigo para adicionar lembretes, rotinas ou consultar sua agenda.',
+};
 
 export function BottomNav() {
   const location = useLocation();
   const { mode } = useAppMode();
+  const lastPathRef = useRef(location.pathname);
+  const isFirstRenderRef = useRef(true);
+  
+  // Speak greeting when navigating to a new tab
+  useEffect(() => {
+    // Skip first render to avoid speaking on page load
+    if (isFirstRenderRef.current) {
+      isFirstRenderRef.current = false;
+      lastPathRef.current = location.pathname;
+      return;
+    }
+    
+    // Only speak if the path actually changed
+    if (lastPathRef.current !== location.pathname) {
+      const greeting = TAB_GREETINGS[location.pathname];
+      if (greeting) {
+        speak(greeting);
+      }
+      lastPathRef.current = location.pathname;
+    }
+  }, [location.pathname]);
   
   // Modo Finanças: Home | Cartão | ISA | Planejamento | Perfil
   const financasItems = [
