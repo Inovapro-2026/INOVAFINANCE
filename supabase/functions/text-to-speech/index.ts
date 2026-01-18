@@ -1,13 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { encode as encodeBase64 } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Google Cloud TTS API endpoint (v1 supports API keys)
-const GOOGLE_TTS_URL = "https://texttospeech.googleapis.com/v1/text:synthesize";
+// Google Gemini TTS API endpoint
+const GEMINI_TTS_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent";
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -26,10 +25,10 @@ serve(async (req) => {
     }
 
     // Get API key from environment
-    const apiKey = Deno.env.get('GOOGLE_TTS_API_KEY');
+    const apiKey = Deno.env.get('GEMINI_API_KEY');
     
     if (!apiKey) {
-      console.error('GOOGLE_TTS_API_KEY not configured');
+      console.error('GEMINI_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'TTS API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -51,33 +50,34 @@ serve(async (req) => {
       );
     }
 
-    console.log('Google TTS Request for text:', cleanText.substring(0, 100) + '...');
+    console.log('Gemini TTS Request for text:', cleanText.substring(0, 100) + '...');
 
-    // Call Google Cloud TTS API with Gemini voice
-    const response = await fetch(`${GOOGLE_TTS_URL}?key=${apiKey}`, {
+    // Call Gemini TTS API
+    const response = await fetch(`${GEMINI_TTS_URL}?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        input: { text: cleanText },
-        voice: {
-          languageCode: 'pt-BR',
-          name: 'pt-BR-Wavenet-A', // High quality WaveNet voice for Brazilian Portuguese
-          ssmlGender: 'FEMALE'
-        },
-        audioConfig: {
-          audioEncoding: 'MP3',
-          speakingRate: 1.0,
-          pitch: 0.0,
-          volumeGainDb: 0.0
+        contents: [{
+          parts: [{ text: cleanText }]
+        }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: {
+                voiceName: "Aoede" // Natural female voice
+              }
+            }
+          }
         }
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Google TTS API error:', response.status, errorText);
+      console.error('Gemini TTS API error:', response.status, errorText);
       
       return new Response(
         JSON.stringify({ error: 'Failed to generate speech', details: errorText }),
@@ -87,21 +87,24 @@ serve(async (req) => {
 
     const data = await response.json();
     
-    if (!data.audioContent) {
-      console.error('No audioContent in response:', data);
+    // Extract audio from Gemini response
+    const audioData = data?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+    
+    if (!audioData?.data) {
+      console.error('No audio data in Gemini response:', JSON.stringify(data, null, 2));
       return new Response(
         JSON.stringify({ error: 'No audio received from TTS API' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Google TTS Success - audio generated');
+    console.log('Gemini TTS Success - audio generated');
 
-    // Return base64 audio directly (Google already returns base64)
+    // Return base64 audio (Gemini returns base64 in inlineData)
     return new Response(
       JSON.stringify({ 
-        audio: data.audioContent, 
-        contentType: 'audio/mp3' 
+        audio: audioData.data, 
+        contentType: audioData.mimeType || 'audio/wav'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
