@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Menu,
   X,
-  UsersRound
+  UsersRound,
+  Bell
 } from "lucide-react";
 
 interface AdminSidebarProps {
@@ -31,6 +32,7 @@ const menuItems = [
   { id: 'financial', label: 'Financeiro', icon: DollarSign },
   { id: 'affiliates', label: 'Afiliados', icon: UsersRound },
   { id: 'support', label: 'Suporte', icon: MessageCircle },
+  { id: 'announcements', label: 'Avisos', icon: Bell },
   { id: 'planning', label: 'Planejamento', icon: CalendarDays },
   { id: 'settings', label: 'Configurações', icon: Settings },
 ];

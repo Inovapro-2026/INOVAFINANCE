@@ -27,6 +27,7 @@ import { AdminSettings } from "@/components/admin/AdminSettings";
 import { AdminApprovals } from "@/components/admin/AdminApprovals";
 import { AdminAffiliatesPanel } from "@/components/admin/AdminAffiliatesPanel";
 import { AdminSupport } from "@/components/admin/AdminSupport";
+import { AdminAnnouncements } from "@/components/admin/AdminAnnouncements";
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -132,6 +133,8 @@ export default function Admin() {
         return <AdminAffiliatesPanel />;
       case 'support':
         return <AdminSupport />;
+      case 'announcements':
+        return <AdminAnnouncements />;
       case 'planning':
         return <AdminPlanning />;
       case 'settings':

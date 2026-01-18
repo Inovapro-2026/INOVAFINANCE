@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { AppModeProvider } from "./contexts/AppModeContext";
 import { BottomNav } from "./components/BottomNav";
 import { VideoSplash } from "./components/VideoSplash";
+import { AnnouncementPopup, AnnouncementBanner } from "./components/AnnouncementComponents";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Cadastros from "./pages/Cadastros";
@@ -39,9 +40,14 @@ function AppRoutes() {
   const { user } = useAuth();
   // Hide nav on login and admin pages
   const showNav = user && location.pathname !== '/login' && location.pathname !== '/admin';
+  // Show announcements only for logged in users and not on admin page
+  const showAnnouncements = user && location.pathname !== '/admin' && location.pathname !== '/login';
 
   return (
     <>
+      {/* Announcement Popup */}
+      {showAnnouncements && <AnnouncementPopup />}
+      
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/cadastros" element={<Cadastros />} />

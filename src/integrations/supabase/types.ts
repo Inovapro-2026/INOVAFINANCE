@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_announcements: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          message: string
+          show_popup: boolean
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message: string
+          show_popup?: boolean
+          title: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          message?: string
+          show_popup?: boolean
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       admin_logs: {
         Row: {
           action: string
@@ -214,6 +250,35 @@ export type Database = {
           user_matricula?: number
         }
         Relationships: []
+      }
+      announcement_reads: {
+        Row: {
+          announcement_id: string
+          id: string
+          read_at: string
+          user_matricula: number
+        }
+        Insert: {
+          announcement_id: string
+          id?: string
+          read_at?: string
+          user_matricula: number
+        }
+        Update: {
+          announcement_id?: string
+          id?: string
+          read_at?: string
+          user_matricula?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcement_reads_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "admin_announcements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       categories: {
         Row: {
