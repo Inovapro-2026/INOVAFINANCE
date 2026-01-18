@@ -229,10 +229,10 @@ export default function Dashboard() {
                 <span className="text-muted-foreground text-sm">Saldo Débito</span>
               </div>
               <h2 className="font-display text-4xl font-bold text-emerald-400">
-                {formatCurrency(user?.initialBalance || 0)}
+                {formatCurrency(debitBalance)}
               </h2>
               <p className="text-xs text-muted-foreground mt-2">
-                Saldo inicial da conta
+                Atualiza com seus ganhos e gastos no débito
               </p>
             </div>
           </GlassCard>

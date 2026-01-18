@@ -13,12 +13,15 @@ export async function startSession(matricula: number, userName?: string): Promis
       .eq('is_online', true);
 
     // Create new session
+    const nowIso = new Date().toISOString();
     const { data, error } = await supabase
       .from('user_sessions')
       .insert({
         user_matricula: matricula,
         user_name: userName || null,
-        is_online: true
+        is_online: true,
+        session_start: nowIso,
+        last_activity: nowIso
       })
       .select('id')
       .single();
@@ -164,23 +167,23 @@ export async function getHourlyAccessData() {
 
   const { data } = await supabase
     .from('user_sessions')
-    .select('session_start')
+    .select('session_start, user_matricula')
     .gte('session_start', todayStart);
 
-  // Group by hour
-  const hourlyData: { [key: number]: number } = {};
+  // Group by hour (unique users)
+  const hourlyUsers: Record<number, Set<number>> = {};
   for (let i = 0; i < 24; i++) {
-    hourlyData[i] = 0;
+    hourlyUsers[i] = new Set<number>();
   }
 
-  (data || []).forEach(session => {
+  (data || []).forEach((session) => {
     const hour = new Date(session.session_start).getHours();
-    hourlyData[hour]++;
+    hourlyUsers[hour].add(session.user_matricula);
   });
 
-  return Object.entries(hourlyData).map(([hour, count]) => ({
+  return Object.entries(hourlyUsers).map(([hour, users]) => ({
     hour: `${hour}h`,
-    acessos: count
+    acessos: users.size
   }));
 }
 

@@ -145,25 +145,25 @@ export function AdminDashboard() {
       pulse: true
     },
     {
-      title: "Acessos Hoje",
-      value: accessStats?.today.totalSessions || 0,
-      subtext: `${accessStats?.today.uniqueUsers || 0} usuários únicos`,
+      title: "Usuários Hoje",
+      value: accessStats?.today.uniqueUsers || 0,
+      subtext: `${accessStats?.today.totalSessions || 0} sessões`,
       icon: Clock,
       color: "text-blue-400",
       bgColor: "bg-blue-500/20"
     },
     {
-      title: "Acessos na Semana",
-      value: accessStats?.week.totalSessions || 0,
-      subtext: `${accessStats?.week.uniqueUsers || 0} usuários únicos`,
+      title: "Usuários na Semana",
+      value: accessStats?.week.uniqueUsers || 0,
+      subtext: `${accessStats?.week.totalSessions || 0} sessões`,
       icon: Calendar,
       color: "text-purple-400",
       bgColor: "bg-purple-500/20"
     },
     {
-      title: "Acessos no Mês",
-      value: accessStats?.month.totalSessions || 0,
-      subtext: `${accessStats?.month.uniqueUsers || 0} usuários únicos`,
+      title: "Usuários no Mês",
+      value: accessStats?.month.uniqueUsers || 0,
+      subtext: `${accessStats?.month.totalSessions || 0} sessões`,
       icon: CalendarDays,
       color: "text-orange-400",
       bgColor: "bg-orange-500/20"

@@ -19,10 +19,7 @@ import {
   generateAgendaGreeting,
   generateRotinasGreeting,
   calculateDaysUntilDay,
-  isVoiceEnabled,
-  wasFinancialGreeted,
-  markFinancialGreeted,
-  isFinancialPage
+  isVoiceEnabled
 } from '@/services/isaVoiceService';
 import { stopAllVoice, isVoicePlaying } from '@/services/voiceQueueService';
 import { calculateBalance, getTransactions, getGoals } from '@/lib/db';
@@ -94,15 +91,12 @@ export function useIsaGreeting({
       return;
     }
 
-    // For financial pages (dashboard, planner, card), only greet once per login session
-    if (isFinancialPage(pageType)) {
-      if (wasFinancialGreeted()) {
-        console.log('[IsaGreeting] Financial pages already greeted this session');
-        hasSpoken.current = true;
-        return;
-      }
+    // Greet only once per tab per session
+    if (wasTabGreeted(pageType)) {
+      console.log('[IsaGreeting] Tab already greeted this session:', pageType);
+      hasSpoken.current = true;
+      return;
     }
-
     // Wait if any voice is currently playing
     if (isVoicePlaying()) {
       console.log(`[IsaGreeting] Another voice is playing, waiting...`);
@@ -123,19 +117,11 @@ export function useIsaGreeting({
         markTabGreeted(pageType);
         hasSpoken.current = true;
 
-        // Mark financial as greeted
-        markFinancialGreeted();
-
-        // After first greeting, continue with financial info
+        // After first greeting, continue with page-specific info
         await speakPageSpecificGreeting();
       } else {
         // Normal page-specific greeting
         await speakPageSpecificGreeting();
-        
-        // Mark financial pages as greeted for this session
-        if (isFinancialPage(pageType)) {
-          markFinancialGreeted();
-        }
       }
     } catch (error) {
       console.error('[IsaGreeting] Error:', error);
@@ -290,6 +276,7 @@ export function useIsaGreeting({
       if (message) {
         console.log(`[IsaGreeting] Speaking for ${pageType}:`, message.substring(0, 50) + '...');
         await isaSpeak(message, pageType);
+        markTabGreeted(pageType);
         hasSpoken.current = true;
       }
     } catch (error) {

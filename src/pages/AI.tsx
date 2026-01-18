@@ -217,22 +217,23 @@ export default function AI() {
   // Function to show balance with animation and auto-hide after 5 seconds
   const showBalanceWithAnimation = useCallback(async (type: 'query' | 'increase' | 'decrease') => {
     if (!user) return;
-    
-    // Use initialBalance (same as Dashboard "Saldo Débito") instead of calculated debitBalance
+
+    const { debitBalance } = await calculateBalance(user.userId, user.initialBalance);
     const creditAvailable = (user.creditLimit || 0) - (user.creditUsed || 0);
+
     setDisplayBalance({
-      debit: Math.max(0, user.initialBalance || 0),
+      debit: Math.max(0, debitBalance),
       credit: Math.max(0, creditAvailable)
     });
-    
+
     setBalanceAnimationType(type);
     setBalanceVisible(true);
-    
+
     // Clear any existing timeout
     if (balanceHideTimeoutRef.current) {
       clearTimeout(balanceHideTimeoutRef.current);
     }
-    
+
     // Auto-hide after 5 seconds
     balanceHideTimeoutRef.current = setTimeout(() => {
       setBalanceVisible(false);
@@ -297,14 +298,10 @@ export default function AI() {
       recentTransactions: []
     };
 
-    const { balance, totalIncome, totalExpense, creditUsed } = await calculateBalance(
+    const { balance, debitBalance, totalIncome, totalExpense, creditUsed } = await calculateBalance(
       user.userId,
       user.initialBalance
     );
-
-    // IMPORTANT: keep debitBalance aligned with the UI "Saldo Débito" (saldo inicial da conta)
-    // so that what the assistant says matches what the user sees.
-    const debitBalance = user.initialBalance || 0;
 
     const transactions = await getTransactions(user.userId);
     const recentTransactions = transactions.slice(0, 10).map((t) => ({
