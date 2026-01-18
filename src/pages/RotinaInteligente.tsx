@@ -211,26 +211,23 @@ export default function RotinaInteligente() {
     setIsLoading(true);
     
     try {
-      // Verify addresses with geocoding
-      const { data: geoData } = await supabase.functions.invoke('smart-transport', {
-        body: { action: 'geocode', address: enderecoCasa }
+      // Validate addresses by testing directions (more reliable than geocode)
+      const { data: testDirections, error: dirError } = await supabase.functions.invoke('smart-transport', {
+        body: { 
+          action: 'directions', 
+          origin: enderecoCasa,
+          destination: enderecoTrabalho,
+          mode: modoTransporte
+        }
       });
       
-      if (!geoData?.success || !geoData?.location) {
-        toast.error('Endereço de casa não encontrado');
+      if (dirError || !testDirections?.success || !testDirections?.directions) {
+        toast.error('Não foi possível calcular a rota. Verifique os endereços.');
         setIsLoading(false);
         return;
       }
       
-      const { data: geoData2 } = await supabase.functions.invoke('smart-transport', {
-        body: { action: 'geocode', address: enderecoTrabalho }
-      });
-      
-      if (!geoData2?.success || !geoData2?.location) {
-        toast.error('Endereço do trabalho não encontrado');
-        setIsLoading(false);
-        return;
-      }
+      toast.success(`Rota encontrada: ${testDirections.directions.distance} - ${testDirections.directions.duration}`);
       
       // Save to database
       if (routine) {
