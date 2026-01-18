@@ -52,7 +52,13 @@ export function useIsaGreeting({
 }: UseIsaGreetingOptions) {
   const hasSpoken = useRef(false);
   const isProcessing = useRef(false);
-  const previousPageType = useRef<string | null>(null);
+
+  // Reset hasSpoken when component mounts (new page)
+  useEffect(() => {
+    hasSpoken.current = false;
+    isProcessing.current = false;
+    console.log(`[IsaGreeting] Mounted for ${pageType}, resetting state`);
+  }, [pageType]);
 
   const speakGreeting = useCallback(async () => {
     // Check global voice setting
@@ -61,20 +67,18 @@ export function useIsaGreeting({
       return;
     }
 
-    if (!enabled || !userId || isProcessing.current) return;
+    if (!enabled || !userId) {
+      console.log('[IsaGreeting] Not enabled or no userId');
+      return;
+    }
     
-    // Reset hasSpoken when page type changes
-    if (previousPageType.current !== pageType) {
-      hasSpoken.current = false;
-      previousPageType.current = pageType;
+    if (isProcessing.current) {
+      console.log('[IsaGreeting] Already processing');
+      return;
     }
 
-    if (hasSpoken.current) return;
-
-    // Check if this tab was already greeted in this session
-    if (wasTabGreeted(pageType)) {
-      console.log(`[IsaGreeting] Tab ${pageType} already greeted this session`);
-      hasSpoken.current = true;
+    if (hasSpoken.current) {
+      console.log('[IsaGreeting] Already spoken on this page');
       return;
     }
 
@@ -86,7 +90,6 @@ export function useIsaGreeting({
     
     console.log(`[IsaGreeting] Starting greeting for ${pageType}`);
     isProcessing.current = true;
-
 
     try {
       const isFirstAccess = isFirstAccessToday();
@@ -219,8 +222,8 @@ export function useIsaGreeting({
       }
 
       if (message) {
+        console.log(`[IsaGreeting] Speaking for ${pageType}:`, message.substring(0, 50) + '...');
         await isaSpeak(message, pageType);
-        markTabGreeted(pageType);
         hasSpoken.current = true;
       }
     } catch (error) {
@@ -229,13 +232,18 @@ export function useIsaGreeting({
   };
 
   useEffect(() => {
-    // Delay to ensure page is loaded and no other audio is playing
+    // Delay to ensure page is loaded and data is available
+    console.log(`[IsaGreeting] Effect triggered for ${pageType}, waiting 1.5s...`);
     const timer = setTimeout(() => {
+      console.log(`[IsaGreeting] Timer fired, calling speakGreeting for ${pageType}`);
       speakGreeting();
-    }, 800);
+    }, 1500);
 
-    return () => clearTimeout(timer);
-  }, [speakGreeting]);
+    return () => {
+      clearTimeout(timer);
+      console.log(`[IsaGreeting] Cleanup for ${pageType}`);
+    };
+  }, [pageType, userId, enabled]);
 
   return {
     speakGreeting,
