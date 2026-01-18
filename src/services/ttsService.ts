@@ -1,4 +1,3 @@
-import { supabase } from '@/integrations/supabase/client';
 import { playAudioExclusively, stopAllAudio, isGlobalAudioPlaying, speakTextExclusively } from './audioManager';
 
 // Cache for audio to avoid repeated API calls
@@ -30,8 +29,54 @@ async function playAudioOrFallback(audio: HTMLAudioElement, fallbackText: string
 }
 
 /**
- * Text-to-Speech service using ElevenLabs TTS API via Edge Function
- * Converts text to audio and plays it
+ * Use native browser TTS as the primary fallback
+ */
+function speakWithNative(text: string): void {
+  console.log('TTS: Using native speech synthesis');
+  speakTextExclusively(text, { lang: 'pt-BR', rate: 1.0 });
+}
+
+/**
+ * Try Gemini/Google TTS via edge function
+ */
+async function tryGeminiTTS(text: string): Promise<HTMLAudioElement | null> {
+  try {
+    console.log('TTS: Trying Gemini TTS for:', text.substring(0, 50));
+
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-tts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ text: text.trim() }),
+    });
+
+    if (!response.ok) {
+      console.warn('TTS: Gemini TTS failed, status:', response.status);
+      return null;
+    }
+
+    const contentType = response.headers.get('Content-Type');
+    if (!contentType?.includes('audio')) {
+      console.warn('TTS: Gemini returned non-audio response');
+      return null;
+    }
+
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    
+    return audio;
+  } catch (err) {
+    console.error('TTS: Gemini TTS error:', err);
+    return null;
+  }
+}
+
+/**
+ * Text-to-Speech service - tries Gemini first, then falls back to native
  */
 export async function speak(text: string): Promise<HTMLAudioElement | null> {
   if (!text || text.trim() === '') {
@@ -51,54 +96,28 @@ export async function speak(text: string): Promise<HTMLAudioElement | null> {
     return audio;
   }
 
-  try {
-    console.log('TTS: Requesting speech from ElevenLabs for:', text.substring(0, 50));
+  // Stop any ongoing speech first
+  stopAllAudio();
 
-    // Use ElevenLabs TTS instead of Gemini (which has quota limits)
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/elevenlabs-tts`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'apikey': SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify({ text: text.trim() }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('TTS: ElevenLabs error:', errorText);
-      // Fallback to native TTS
-      console.log('TTS: Falling back to native speech synthesis');
-      speakTextExclusively(text, { lang: 'pt-BR' });
-      return null;
+  // Try Gemini TTS first
+  const geminiAudio = await tryGeminiTTS(text);
+  
+  if (geminiAudio) {
+    try {
+      const audioUrl = geminiAudio.src;
+      audioCache.set(cacheKey, audioUrl);
+      await playAudioOrFallback(geminiAudio, text);
+      console.log('TTS: Gemini audio played successfully');
+      return geminiAudio;
+    } catch (err) {
+      console.error('TTS: Gemini playback failed:', err);
     }
-
-    // Get audio as blob
-    const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
-
-    // Cache the audio URL
-    audioCache.set(cacheKey, audioUrl);
-
-    const audio = new Audio(audioUrl);
-    
-    // Clean up URL when audio ends
-    audio.onended = () => {
-      // Keep in cache, don't revoke
-    };
-
-    await playAudioOrFallback(audio, text);
-
-    console.log('TTS: ElevenLabs audio played successfully');
-    return audio;
-  } catch (err) {
-    console.error('TTS: Service error:', err);
-    // Fallback to native TTS on any error
-    console.log('TTS: Falling back to native speech synthesis');
-    speakTextExclusively(text, { lang: 'pt-BR' });
-    return null;
   }
+
+  // Fallback to native TTS
+  console.log('TTS: Falling back to native speech synthesis');
+  speakWithNative(text);
+  return null;
 }
 
 /**
@@ -113,28 +132,6 @@ export function stopSpeaking(): void {
  */
 export function isSpeaking(): boolean {
   return isGlobalAudioPlaying();
-}
-
-/**
- * Preload audio for common phrases
- */
-export async function preloadCommonPhrases(phrases: string[]): Promise<void> {
-  for (const phrase of phrases) {
-    const cacheKey = phrase.trim().toLowerCase();
-    if (!audioCache.has(cacheKey)) {
-      try {
-        const { data } = await supabase.functions.invoke('text-to-speech', {
-          body: { text: phrase }
-        });
-        if (data?.audio) {
-          const audioUrl = `data:${data.contentType || 'audio/wav'};base64,${data.audio}`;
-          audioCache.set(cacheKey, audioUrl);
-        }
-      } catch (err) {
-        console.error('TTS preload error:', err);
-      }
-    }
-  }
 }
 
 /**

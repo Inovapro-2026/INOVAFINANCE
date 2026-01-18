@@ -1,29 +1,23 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Calendar, 
   Plus, 
-  Mic, 
-  MicOff, 
   Clock, 
-  Bell, 
   Check, 
   ChevronLeft, 
   ChevronRight,
   CalendarDays,
   List,
   Trash2,
-  X
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { speak as speakTts, stopSpeaking } from '@/services/ttsService';
 import { 
   getAgendaItems, 
   addAgendaItem, 
@@ -31,7 +25,6 @@ import {
   markAgendaItemComplete,
   getAgendaItemsForDate,
   AgendaItem,
-  getTodayDate,
   formatTime
 } from '@/lib/agendaDb';
 import { 
@@ -44,7 +37,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import {
@@ -273,11 +265,8 @@ export default function Agenda() {
   const [items, setItems] = useState<AgendaItem[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [view, setView] = useState<'calendar' | 'list'>('calendar');
-  const [isListening, setIsListening] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [itemsByDate, setItemsByDate] = useState<Record<string, number>>({});
-  const recognitionRef = useRef<any>(null);
 
   // Load items
   const loadItems = useCallback(async () => {
@@ -316,123 +305,6 @@ export default function Agenda() {
     }
   }, []);
 
-  // Voice input handling
-  const startListening = useCallback(() => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast.error('Reconhecimento de voz não suportado');
-      return;
-    }
-
-    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'pt-BR';
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onresult = async (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      console.log('Voice input:', transcript);
-      await processVoiceCommand(transcript);
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      setIsListening(false);
-      toast.error('Erro no reconhecimento de voz');
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-  }, []);
-
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-    setIsListening(false);
-  }, []);
-
-  // Process voice command
-  const processVoiceCommand = async (command: string) => {
-    if (!user) return;
-    
-    setIsLoading(true);
-    
-    try {
-      // Call edge function to parse the command
-      const { data, error } = await supabase.functions.invoke('parse-agenda-command', {
-        body: { message: command }
-      });
-
-      if (error) throw error;
-
-      console.log('Parsed command:', data);
-
-      const userMatricula = user.userId;
-      
-      if (data.tipo === 'consulta') {
-        // Handle query commands
-        await handleConsulta(data.consulta_tipo);
-      } else if (data.tipo === 'lembrete') {
-        // Add reminder
-        const item = await addAgendaItem({
-          user_matricula: userMatricula,
-          titulo: data.titulo,
-          data: data.data,
-          hora: data.hora,
-          tipo: 'lembrete',
-        });
-
-        if (item) {
-          toast.success('Lembrete criado!');
-          speakTts('Lembrete salvo com sucesso.');
-          await loadItems();
-          
-          // Schedule notification
-          scheduleNotification(item);
-        }
-      }
-    } catch (err) {
-      console.error('Error processing command:', err);
-      toast.error('Erro ao processar comando');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Handle query commands
-  const handleConsulta = async (tipo: 'hoje' | 'amanha' | 'semana') => {
-    if (!user) return;
-    
-    const userMatricula = user.userId;
-    let targetDate = new Date();
-    if (tipo === 'amanha') {
-      targetDate.setDate(targetDate.getDate() + 1);
-    }
-    
-    const dateStr = targetDate.toISOString().split('T')[0];
-    const dayItems = await getAgendaItemsForDate(userMatricula, dateStr);
-    
-    if (dayItems.length === 0) {
-      const dayLabel = tipo === 'hoje' ? 'hoje' : 'amanhã';
-      speakTts(`Você não tem lembretes para ${dayLabel}.`);
-    } else {
-      const itemList = dayItems.map(i => `${i.titulo} às ${formatTime(i.hora)}`).join(', ');
-      const dayLabel = tipo === 'hoje' ? 'Hoje' : 'Amanhã';
-      speakTts(`${dayLabel} você tem: ${itemList}.`);
-    }
-    
-    setSelectedDate(targetDate);
-  };
-
   // Schedule notification
   const scheduleNotification = (item: AgendaItem) => {
     const itemDateTime = new Date(`${item.data}T${item.hora}`);
@@ -464,7 +336,6 @@ export default function Agenda() {
 
     if (item) {
       toast.success('Lembrete criado!');
-      speakTts('Lembrete salvo com sucesso.');
       await loadItems();
       scheduleNotification(item);
     }
@@ -629,33 +500,12 @@ export default function Agenda() {
               <Calendar className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
               <p className="text-muted-foreground">Nenhum lembrete para este dia</p>
               <p className="text-sm text-muted-foreground/70 mt-1">
-                Toque no microfone e diga "Me lembre de..."
+                Toque no + para adicionar ou use a aba ISA por voz
               </p>
             </motion.div>
           )}
         </div>
       </div>
-
-      {/* Floating Mic Button */}
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={isListening ? stopListening : startListening}
-        disabled={isLoading}
-        className={cn(
-          "fixed bottom-24 right-4 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all z-50",
-          isListening
-            ? "bg-red-500 animate-pulse"
-            : "bg-primary hover:bg-primary/90",
-          isLoading && "opacity-50"
-        )}
-      >
-        {isListening ? (
-          <MicOff className="w-6 h-6 text-white" />
-        ) : (
-          <Mic className="w-6 h-6 text-white" />
-        )}
-      </motion.button>
 
       {/* Add Dialog */}
       <AddItemDialog
