@@ -283,11 +283,23 @@ export default function AssistenteVoz() {
         return;
       }
 
-      // Check for query commands with time-of-day support
-      const queryKeywords = ['o que tenho', 'quais compromissos', 'minha agenda', 'meus lembretes', 'compromissos de', 'tenho pra fazer', 'como esta minha agenda', 'como está minha agenda'];
+      // Check for query commands with time-of-day support - EXPANDED keywords
+      const queryKeywords = [
+        'o que tenho', 'oque tenho', 'que tenho', 
+        'quais compromissos', 'minha agenda', 'meus lembretes', 
+        'compromissos de', 'tenho pra fazer', 'tenho para fazer',
+        'como esta minha agenda', 'como está minha agenda',
+        'me mostra', 'mostra minha agenda', 'mostra meus compromissos',
+        'ver agenda', 'ver meus compromissos', 'meus compromissos',
+        'o que preciso fazer', 'que preciso fazer', 'minha rotina',
+        'tem algo para', 'tem algo pra', 'tenho algo', 'algo para fazer',
+        'tarefas de', 'minhas tarefas', 'meus afazeres'
+      ];
       const isQueryCommand = queryKeywords.some(keyword => normalizedCommand.includes(keyword));
 
       if (isQueryCommand) {
+        console.log('[AssistenteVoz] Query command detected:', command);
+        
         // Determine time of day filter
         const isMorning = normalizedCommand.includes('manha') || normalizedCommand.includes('manhã');
         const isAfternoon = normalizedCommand.includes('tarde');
@@ -383,6 +395,8 @@ export default function AssistenteVoz() {
   const handleConsulta = async (tipo: 'hoje' | 'amanha' | 'semana', timeFilter?: { morning?: boolean; afternoon?: boolean; evening?: boolean }) => {
     if (!user) return;
 
+    console.log('[AssistenteVoz] handleConsulta called with tipo:', tipo);
+
     const formatLocalDate = (d: Date) => {
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -398,46 +412,88 @@ export default function AssistenteVoz() {
 
     const dateStr = formatLocalDate(targetDate);
     
-    const { data: items } = await supabase
+    // Get agenda items for the day
+    const { data: agendaItems, error: agendaError } = await supabase
       .from('agenda_items')
       .select('*')
       .eq('user_matricula', userMatricula)
       .eq('data', dateStr)
       .order('hora', { ascending: true });
 
+    if (agendaError) {
+      console.error('[AssistenteVoz] Error fetching agenda items:', agendaError);
+    }
+
+    // Get routines for the day of week
+    const dayOfWeek = targetDate.toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0, 3).toLowerCase();
+    const { data: routines, error: routineError } = await supabase
+      .from('rotinas')
+      .select('*')
+      .eq('user_matricula', userMatricula)
+      .eq('ativo', true)
+      .contains('dias_semana', [dayOfWeek]);
+
+    if (routineError) {
+      console.error('[AssistenteVoz] Error fetching routines:', routineError);
+    }
+
+    // Combine agenda items and routines
+    let allItems: Array<{ titulo: string; hora: string; type: 'agenda' | 'rotina' }> = [];
+    
+    if (agendaItems) {
+      allItems.push(...agendaItems.map((item: any) => ({
+        titulo: item.titulo,
+        hora: item.hora,
+        type: 'agenda' as const
+      })));
+    }
+    
+    if (routines) {
+      allItems.push(...routines.map((r: any) => ({
+        titulo: r.titulo,
+        hora: r.hora,
+        type: 'rotina' as const
+      })));
+    }
+
+    // Sort by time
+    allItems.sort((a, b) => a.hora.localeCompare(b.hora));
+
     // Apply time-of-day filter
-    let filteredItems = items || [];
     let timeLabel = tipo === 'hoje' ? 'hoje' : 'amanhã';
     
     if (timeFilter?.morning) {
-      filteredItems = filteredItems.filter((item: any) => {
+      allItems = allItems.filter((item) => {
         const hour = parseInt(item.hora.split(':')[0]);
         return hour < 12;
       });
       timeLabel = tipo === 'hoje' ? 'pela manhã' : 'amanhã de manhã';
     } else if (timeFilter?.afternoon) {
-      filteredItems = filteredItems.filter((item: any) => {
+      allItems = allItems.filter((item) => {
         const hour = parseInt(item.hora.split(':')[0]);
         return hour >= 12 && hour < 18;
       });
       timeLabel = tipo === 'hoje' ? 'à tarde' : 'amanhã à tarde';
     } else if (timeFilter?.evening) {
-      filteredItems = filteredItems.filter((item: any) => {
+      allItems = allItems.filter((item) => {
         const hour = parseInt(item.hora.split(':')[0]);
         return hour >= 18;
       });
       timeLabel = tipo === 'hoje' ? 'à noite' : 'amanhã à noite';
     }
 
-    if (filteredItems.length === 0) {
+    console.log('[AssistenteVoz] Found items:', allItems.length);
+
+    if (allItems.length === 0) {
       const msg = `Você não tem nada agendado ${timeLabel}.`;
       if (voiceEnabled) speakTts(msg);
       toast.info(msg);
     } else {
-      const itemList = filteredItems.map((i: any) => `${i.titulo} às ${formatTime(i.hora)}`).join(', ');
+      const itemList = allItems.map(i => `${i.titulo} às ${formatTime(i.hora)}`).join(', ');
       const msg = `Para ${timeLabel} você tem: ${itemList}.`;
+      console.log('[AssistenteVoz] Speaking:', msg);
       if (voiceEnabled) speakTts(msg);
-      toast.success(`${filteredItems.length} item(s) ${timeLabel}`);
+      toast.success(`${allItems.length} item(s) ${timeLabel}`);
     }
   };
 
