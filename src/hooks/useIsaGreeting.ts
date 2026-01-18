@@ -37,6 +37,7 @@ interface UseIsaGreetingOptions {
   enabled?: boolean;
   creditLimit?: number;
   creditUsed?: number;
+  creditDueDay?: number;
 }
 
 export function useIsaGreeting({
@@ -46,7 +47,8 @@ export function useIsaGreeting({
   initialBalance,
   enabled = true,
   creditLimit = 0,
-  creditUsed = 0
+  creditUsed = 0,
+  creditDueDay = 5
 }: UseIsaGreetingOptions) {
   const hasSpoken = useRef(false);
   const isProcessing = useRef(false);
@@ -111,7 +113,7 @@ export function useIsaGreeting({
     } finally {
       isProcessing.current = false;
     }
-  }, [pageType, userId, userName, enabled, initialBalance, creditLimit, creditUsed]);
+  }, [pageType, userId, userName, enabled, initialBalance, creditLimit, creditUsed, creditDueDay]);
 
   const speakPageSpecificGreeting = async () => {
     // Stop any playing audio before starting
@@ -122,74 +124,90 @@ export function useIsaGreeting({
 
       switch (pageType) {
         case 'dashboard': {
-          const [balanceData, transactions, salaryInfo, scheduledPayments] = await Promise.all([
+          const [balanceData, transactions, salaryInfo] = await Promise.all([
             calculateBalance(userId, initialBalance),
             getTransactions(userId),
-            getUserSalaryInfo(userId),
-            getScheduledPayments(userId)
+            getUserSalaryInfo(userId)
           ]);
 
-          // Calculate today's expenses
-          const today = new Date().toDateString();
-          const todayTransactions = transactions.filter(t => {
-            const txDate = new Date(t.date).toDateString();
-            return txDate === today && t.type === 'expense';
+          // Calculate monthly income and expenses
+          const now = new Date();
+          const currentMonth = now.getMonth();
+          const currentYear = now.getFullYear();
+          
+          const monthlyTransactions = transactions.filter(t => {
+            const txDate = new Date(t.date);
+            return txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
           });
-          const todaySpent = todayTransactions.reduce((sum, t) => sum + t.amount, 0);
+          
+          const monthlyIncome = monthlyTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + t.amount, 0);
+          
+          const monthlyExpenses = monthlyTransactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + t.amount, 0);
 
-          // Calculate payments due today
-          const todayDay = new Date().getDate();
-          const paymentsDueToday = scheduledPayments
-            .filter(p => p.dueDay === todayDay && p.isActive)
-            .reduce((sum, p) => sum + p.amount, 0);
-
-          // Days until salary
-          const daysUntilSalary = salaryInfo?.salaryDay
-            ? calculateDaysUntilDay(salaryInfo.salaryDay)
-            : null;
-
-          // Use initialBalance (same as shown on screen) instead of calculated debitBalance
           message = generateHomeGreeting(
             userName,
-            initialBalance, // Changed from balanceData.debitBalance to match the UI
-            todaySpent,
-            paymentsDueToday,
-            daysUntilSalary
+            initialBalance,
+            monthlyIncome,
+            monthlyExpenses
           );
           break;
         }
 
         case 'planner': {
-          const [goals, salaryInfo, scheduledPayments] = await Promise.all([
-            getGoals(userId),
+          const [salaryInfo, scheduledPayments] = await Promise.all([
             getUserSalaryInfo(userId),
             getScheduledPayments(userId)
           ]);
 
-          const activeGoals = goals.length;
-          const goalsWithoutProgress = goals.filter(g => (g.currentAmount || 0) === 0).length;
+          // Calculate monthly payments total
+          const monthlyPayments = scheduledPayments
+            .filter(p => p.isActive)
+            .reduce((sum, p) => sum + p.amount, 0);
 
-          // Calculate monthly payments
-          const summary = salaryInfo
-            ? await calculateMonthlySummary(userId, salaryInfo.salaryAmount, salaryInfo.salaryDay, salaryInfo.advanceAmount || 0)
+          // Find biggest expense
+          const biggestPayment = scheduledPayments
+            .filter(p => p.isActive)
+            .sort((a, b) => b.amount - a.amount)[0];
+          const biggestExpense = biggestPayment 
+            ? { name: biggestPayment.name, amount: biggestPayment.amount }
             : null;
-          const monthlyPayments = summary?.totalPayments || 0;
 
           const daysUntilSalary = salaryInfo?.salaryDay
             ? calculateDaysUntilDay(salaryInfo.salaryDay)
             : null;
 
+          // Calculate predicted balance (simplified)
+          const totalIncome = (salaryInfo?.salaryAmount || 0) + (salaryInfo?.advanceAmount || 0);
+          const predictedBalance = totalIncome - monthlyPayments;
+          
+          // Savings suggestion (10% of predicted balance if positive)
+          const savingsAmount = predictedBalance > 0 ? Math.floor(predictedBalance * 0.1) : 0;
+
           message = generatePlannerGreeting(
-            activeGoals,
-            goalsWithoutProgress,
             monthlyPayments,
-            daysUntilSalary
+            daysUntilSalary,
+            predictedBalance,
+            biggestExpense,
+            savingsAmount
           );
           break;
         }
 
         case 'card': {
-          message = generateCardGreeting(creditLimit, creditUsed);
+          const dueDay = creditDueDay;
+          const today = new Date();
+          let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+          if (today.getDate() > dueDay) {
+            dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+          }
+          const diffTime = dueDate.getTime() - today.getTime();
+          const daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          message = generateCardGreeting(creditLimit, creditUsed, dueDay, daysUntilDue);
           break;
         }
 
