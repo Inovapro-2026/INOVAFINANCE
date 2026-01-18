@@ -37,6 +37,7 @@ import { isaSpeak } from '@/services/isaVoiceService';
 import { useIsaGreeting } from '@/hooks/useIsaGreeting';
 import { ModeToggle } from '@/components/ModeToggle';
 import { BrazilClock } from '@/components/BrazilClock';
+import { AddressAutocomplete } from '@/components/AddressAutocomplete';
 import {
   Dialog,
   DialogContent,
@@ -617,10 +618,11 @@ export default function RotinaInteligente() {
                 <HomeIcon className="w-4 h-4" />
                 Endereço de Casa
               </Label>
-              <Input
-                placeholder="Rua, número, bairro, cidade"
+              <AddressAutocomplete
                 value={enderecoCasa}
-                onChange={(e) => setEnderecoCasa(e.target.value)}
+                onChange={setEnderecoCasa}
+                placeholder="Digite seu endereço de casa..."
+                icon={<HomeIcon className="w-4 h-4" />}
               />
             </div>
             
@@ -629,10 +631,11 @@ export default function RotinaInteligente() {
                 <Building2 className="w-4 h-4" />
                 Endereço do Trabalho
               </Label>
-              <Input
-                placeholder="Rua, número, bairro, cidade"
+              <AddressAutocomplete
                 value={enderecoTrabalho}
-                onChange={(e) => setEnderecoTrabalho(e.target.value)}
+                onChange={setEnderecoTrabalho}
+                placeholder="Digite o endereço do trabalho..."
+                icon={<Building2 className="w-4 h-4" />}
               />
             </div>
             

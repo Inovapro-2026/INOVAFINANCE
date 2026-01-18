@@ -8,12 +8,44 @@ const corsHeaders = {
 const GOOGLE_MAPS_API_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY');
 
 interface RouteRequest {
-  action: 'geocode' | 'directions' | 'status' | 'distance';
+  action: 'geocode' | 'directions' | 'status' | 'distance' | 'autocomplete';
   origin?: string;
   destination?: string;
   address?: string;
+  input?: string;
   mode?: string;
   arrivalTime?: string;
+}
+
+interface PlacePrediction {
+  place_id: string;
+  description: string;
+  structured_formatting: {
+    main_text: string;
+    secondary_text: string;
+  };
+}
+
+async function getPlaceAutocomplete(input: string): Promise<PlacePrediction[]> {
+  const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&types=address&components=country:br&language=pt-BR&key=${GOOGLE_MAPS_API_KEY}`;
+  
+  console.log('Fetching place autocomplete...');
+  const response = await fetch(url);
+  const data = await response.json();
+  
+  if (data.status === 'OK' && data.predictions) {
+    return data.predictions.map((p: any) => ({
+      place_id: p.place_id,
+      description: p.description,
+      structured_formatting: {
+        main_text: p.structured_formatting?.main_text || '',
+        secondary_text: p.structured_formatting?.secondary_text || ''
+      }
+    }));
+  }
+  
+  console.log('Autocomplete status:', data.status);
+  return [];
 }
 
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
@@ -179,12 +211,25 @@ serve(async (req) => {
 
   try {
     const body: RouteRequest = await req.json();
-    const { action, origin, destination, address, mode = 'transit', arrivalTime } = body;
+    const { action, origin, destination, address, input, mode = 'transit', arrivalTime } = body;
     
-    console.log('Smart Transport request:', action, { origin, destination, address, mode, arrivalTime });
+    console.log('Smart Transport request:', action, { origin, destination, address, input, mode, arrivalTime });
     
     if (!GOOGLE_MAPS_API_KEY) {
       throw new Error('Google Maps API key not configured');
+    }
+
+    // Handle autocomplete first (before other actions)
+    if (action === 'autocomplete') {
+      if (!input || input.length < 3) {
+        return new Response(JSON.stringify({ success: true, predictions: [] }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      const predictions = await getPlaceAutocomplete(input);
+      return new Response(JSON.stringify({ success: true, predictions }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     switch (action) {
