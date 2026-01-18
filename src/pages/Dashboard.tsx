@@ -73,6 +73,29 @@ export default function Dashboard() {
     }
   }, [user, user?.initialBalance, user?.creditLimit]);
 
+  // Reload data when page gets focus (after returning from AI page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && user) {
+        loadData();
+      }
+    };
+
+    const handleFocus = () => {
+      if (user) {
+        loadData();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [user]);
+
   const loadData = async () => {
     if (!user) return;
 
