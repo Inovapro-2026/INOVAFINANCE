@@ -36,7 +36,7 @@ import {
   getTodayDate
 } from '@/lib/agendaDb';
 
-export type PageType = 'dashboard' | 'planner' | 'card' | 'goals' | 'ai' | 'agenda' | 'rotinas' | 'other';
+export type PageType = 'dashboard' | 'planner' | 'card' | 'goals' | 'ai' | 'agenda' | 'rotinas' | 'transporte' | 'other';
 
 interface UseIsaGreetingOptions {
   pageType: PageType;
@@ -277,6 +277,11 @@ export function useIsaGreeting({
             .map(r => ({ titulo: r.titulo, hora: r.hora }));
 
           message = generateRotinasGreeting(pendingRotinas, completedCount, totalCount);
+          break;
+        }
+
+        case 'transporte': {
+          message = 'Rotina Inteligente. Configure seu trajeto casa-trabalho e eu aviso quando for hora de sair.';
           break;
         }
 

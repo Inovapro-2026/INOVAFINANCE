@@ -16,7 +16,7 @@ import {
 const ISA_VOICE_ENABLED_KEY = 'isa_voice_enabled';
 
 // Main pages that use ElevenLabs (premium voice)
-const PREMIUM_VOICE_PAGES = ['dashboard', 'planner', 'card', 'goals', 'ai', 'agenda', 'rotinas'];
+const PREMIUM_VOICE_PAGES = ['dashboard', 'planner', 'card', 'goals', 'ai', 'agenda', 'rotinas', 'transporte'];
 
 // Financial pages that should only greet once per login session
 const FINANCIAL_PAGES = ['dashboard', 'planner', 'card'];
