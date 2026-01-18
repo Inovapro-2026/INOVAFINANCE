@@ -91,15 +91,26 @@ export function useIsaGreeting({
       return;
     }
 
-    // Greet only once per tab per session
-    if (wasTabGreeted(pageType)) {
+    // Check if tab was already greeted this session
+    // Skip this check for first access or if coming from a different page
+    const alreadyGreeted = wasTabGreeted(pageType);
+    console.log(`[IsaGreeting] Tab ${pageType} already greeted: ${alreadyGreeted}`);
+    
+    if (alreadyGreeted) {
       console.log('[IsaGreeting] Tab already greeted this session:', pageType);
       hasSpoken.current = true;
       return;
     }
+    
     // Wait if any voice is currently playing
     if (isVoicePlaying()) {
-      console.log(`[IsaGreeting] Another voice is playing, waiting...`);
+      console.log(`[IsaGreeting] Another voice is playing, waiting 2s and retrying...`);
+      // Instead of just returning, wait and retry
+      setTimeout(() => {
+        if (!hasSpoken.current && !isVoicePlaying()) {
+          speakGreeting();
+        }
+      }, 2000);
       return;
     }
     
