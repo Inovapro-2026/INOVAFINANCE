@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.parse-agenda-command]
 verify_jwt = false
+
+[functions.gemini-tts]
+verify_jwt = false
