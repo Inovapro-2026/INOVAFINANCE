@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, memo } from 'react';
+import { useState, useEffect, useMemo, memo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, User, Wallet, Mail, Phone, CreditCard, Calendar, UserPlus, CheckCircle, Sparkles, Fingerprint, Briefcase, DollarSign, CalendarDays } from 'lucide-react';
@@ -15,6 +15,7 @@ import {
   authenticateWithBiometric,
   getBiometricMatricula
 } from '@/services/biometricService';
+import loginAudio from '@/assets/login-audio.mp3';
 
 type Step = 'matricula' | 'register' | 'success' | 'pending' | 'rejected';
 
@@ -92,8 +93,16 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  // Intro animation removed - go straight to content
-
+  // Play login audio on mount
+  useEffect(() => {
+    const audio = new Audio(loginAudio);
+    audio.play().catch((err) => console.error('Error playing login audio:', err));
+    
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, []);
   // Check biometric availability on mount
   useEffect(() => {
     const checkBiometric = async () => {
