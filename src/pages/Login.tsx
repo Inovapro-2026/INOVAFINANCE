@@ -93,14 +93,21 @@ export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  // Play login audio on mount
+  // Play login audio on mount (only once)
+  const loginAudioPlayedRef = useRef(false);
+  
   useEffect(() => {
-    const audio = new Audio(loginAudio);
-    audio.play().catch((err) => console.error('Error playing login audio:', err));
+    if (loginAudioPlayedRef.current) return;
+    loginAudioPlayedRef.current = true;
+    
+    // Small delay to ensure intro audio has stopped
+    const timer = setTimeout(() => {
+      const audio = new Audio(loginAudio);
+      audio.play().catch((err) => console.error('Error playing login audio:', err));
+    }, 500);
     
     return () => {
-      audio.pause();
-      audio.currentTime = 0;
+      clearTimeout(timer);
     };
   }, []);
   // Check biometric availability on mount
