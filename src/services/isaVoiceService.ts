@@ -348,6 +348,89 @@ export function generateProfileGreeting(activeGoals: number): string {
 }
 
 /**
+ * Generate Agenda tab greeting
+ * Focus: compromissos de hoje até 3 dias futuros
+ */
+export function generateAgendaGreeting(
+  todayItems: { titulo: string; hora: string }[],
+  upcomingDays: { date: string; label: string; items: { titulo: string; hora: string }[] }[]
+): string {
+  let message = '';
+
+  // Today's items
+  if (todayItems.length === 0) {
+    message += 'Nenhum compromisso para hoje. ';
+  } else if (todayItems.length === 1) {
+    message += `Hoje: ${todayItems[0].titulo} às ${todayItems[0].hora}. `;
+  } else {
+    message += `Hoje: ${todayItems.length} compromissos. `;
+    // Mention first 2
+    const first2 = todayItems.slice(0, 2);
+    message += first2.map(i => `${i.titulo} às ${i.hora}`).join(', ') + '. ';
+  }
+
+  // Upcoming days (next 3 days)
+  const daysWithItems = upcomingDays.filter(d => d.items.length > 0);
+  if (daysWithItems.length > 0) {
+    for (const day of daysWithItems.slice(0, 2)) {
+      message += `${day.label}: ${day.items.length} ${day.items.length === 1 ? 'compromisso' : 'compromissos'}. `;
+    }
+  }
+
+  if (!message.trim()) {
+    message = 'Sua agenda está livre para os próximos dias.';
+  }
+
+  return message;
+}
+
+/**
+ * Generate Rotinas tab greeting
+ * Focus: rotinas do dia nas próximas horas
+ */
+export function generateRotinasGreeting(
+  pendingRotinas: { titulo: string; hora: string }[],
+  completedCount: number,
+  totalCount: number
+): string {
+  let message = '';
+
+  if (totalCount === 0) {
+    return 'Nenhuma rotina para hoje.';
+  }
+
+  // Progress
+  if (completedCount === totalCount) {
+    return `Parabéns! Você completou todas as ${totalCount} rotinas de hoje.`;
+  }
+
+  const pendingCount = totalCount - completedCount;
+  message += `${completedCount} de ${totalCount} rotinas completas. `;
+
+  // Upcoming rotinas (filter by current time)
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const currentTimeMinutes = currentHour * 60 + currentMinute;
+
+  const upcomingRotinas = pendingRotinas.filter(r => {
+    const [h, m] = r.hora.split(':').map(Number);
+    const rotinaTimeMinutes = h * 60 + m;
+    return rotinaTimeMinutes >= currentTimeMinutes;
+  });
+
+  if (upcomingRotinas.length > 0) {
+    // Mention next 2 rotinas
+    const next2 = upcomingRotinas.slice(0, 2);
+    message += 'Próximas: ' + next2.map(r => `${r.titulo} às ${r.hora}`).join(', ') + '.';
+  } else if (pendingCount > 0) {
+    message += `${pendingCount} rotinas pendentes.`;
+  }
+
+  return message;
+}
+
+/**
  * Calculate days until a specific day of the month
  */
 export function calculateDaysUntilDay(targetDay: number): number {

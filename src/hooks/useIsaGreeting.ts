@@ -16,6 +16,8 @@ import {
   generatePlannerGreeting,
   generateCardGreeting,
   generateProfileGreeting,
+  generateAgendaGreeting,
+  generateRotinasGreeting,
   calculateDaysUntilDay,
   isVoiceEnabled
 } from '@/services/isaVoiceService';
@@ -25,8 +27,16 @@ import {
   getUserSalaryInfo,
   calculateMonthlySummary
 } from '@/lib/plannerDb';
+import {
+  getAgendaItems,
+  getRotinas,
+  getRotinaCompletionsForDate,
+  getRotinasForToday,
+  isRotinaCompletedToday,
+  getTodayDate
+} from '@/lib/agendaDb';
 
-export type PageType = 'dashboard' | 'planner' | 'card' | 'goals' | 'ai' | 'other';
+export type PageType = 'dashboard' | 'planner' | 'card' | 'goals' | 'ai' | 'agenda' | 'rotinas' | 'other';
 
 interface UseIsaGreetingOptions {
   pageType: PageType;
@@ -204,6 +214,52 @@ export function useIsaGreeting({
         case 'goals': {
           const goals = await getGoals(userId);
           message = generateProfileGreeting(goals.length);
+          break;
+        }
+
+        case 'agenda': {
+          // Get today's agenda items
+          const today = getTodayDate();
+          const todayItems = await getAgendaItems(userId, today, today);
+          
+          // Get next 3 days
+          const upcomingDays: { date: string; label: string; items: { titulo: string; hora: string }[] }[] = [];
+          const dayLabels = ['Amanhã', 'Depois de amanhã', 'Em 3 dias'];
+          
+          for (let i = 1; i <= 3; i++) {
+            const date = new Date();
+            date.setDate(date.getDate() + i);
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const dayItems = await getAgendaItems(userId, dateStr, dateStr);
+            upcomingDays.push({
+              date: dateStr,
+              label: dayLabels[i - 1],
+              items: dayItems.map(item => ({ titulo: item.titulo, hora: item.hora }))
+            });
+          }
+
+          message = generateAgendaGreeting(
+            todayItems.map(item => ({ titulo: item.titulo, hora: item.hora })),
+            upcomingDays
+          );
+          break;
+        }
+
+        case 'rotinas': {
+          // Get today's rotinas
+          const allRotinas = await getRotinas(userId);
+          const todayRotinas = getRotinasForToday(allRotinas);
+          const completions = await getRotinaCompletionsForDate(userId, getTodayDate());
+          
+          const completedCount = todayRotinas.filter(r => isRotinaCompletedToday(r.id, completions)).length;
+          const totalCount = todayRotinas.length;
+          
+          // Get pending rotinas (not completed)
+          const pendingRotinas = todayRotinas
+            .filter(r => !isRotinaCompletedToday(r.id, completions))
+            .map(r => ({ titulo: r.titulo, hora: r.hora }));
+
+          message = generateRotinasGreeting(pendingRotinas, completedCount, totalCount);
           break;
         }
 
