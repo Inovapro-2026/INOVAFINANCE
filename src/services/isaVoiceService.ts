@@ -277,6 +277,7 @@ export function generateFirstAccessGreeting(userName: string): string {
 /**
  * Generate Dashboard/Home greeting with financial data
  * Focus: Saldo atual, quanto ganhou e quanto gastou neste mês
+ * Includes tip about routines feature
  */
 export function generateHomeGreeting(
   userName: string,
@@ -291,8 +292,11 @@ export function generateHomeGreeting(
   message += `Saldo: ${currencyToSpeech(balance)}. `;
   
   if (monthlyIncome > 0 || monthlyExpenses > 0) {
-    message += `Este mês, ganhou ${currencyToSpeech(monthlyIncome)} e gastou ${currencyToSpeech(monthlyExpenses)}.`;
+    message += `Este mês, ganhou ${currencyToSpeech(monthlyIncome)} e gastou ${currencyToSpeech(monthlyExpenses)}. `;
   }
+
+  // Add tip about routines
+  message += `Se quiser, pode organizar sua rotina clicando na opção rotina em cima do seu nome.`;
 
   return message;
 }
