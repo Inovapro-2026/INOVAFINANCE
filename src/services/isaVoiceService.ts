@@ -26,6 +26,11 @@ export function isVoiceEnabled(): boolean {
  */
 export function setVoiceEnabled(enabled: boolean): void {
   localStorage.setItem(ISA_VOICE_ENABLED_KEY, enabled.toString());
+  // Clear greeted tabs when voice is enabled so greetings can play again
+  if (enabled) {
+    sessionStorage.removeItem(ISA_TAB_GREETED_KEY);
+    console.log('ISA: Voice enabled, cleared greeted tabs for fresh greetings');
+  }
 }
 
 /**
@@ -190,6 +195,8 @@ export async function isaSpeak(
     return;
   }
 
+  console.log(`ISA: Attempting to speak on ${pageType}:`, text.substring(0, 50) + '...');
+
   // Stop any ongoing speech
   stopAllAudio();
 
@@ -199,9 +206,11 @@ export async function isaSpeak(
     if (usePremiumVoice) {
       console.log('ISA: Using ElevenLabs voice for:', pageType);
       await speakWithElevenLabs(text);
+      console.log('ISA: ElevenLabs speech completed for:', pageType);
     } else {
       console.log('ISA: Using native browser voice for:', pageType);
       await speakNative(text);
+      console.log('ISA: Native speech completed for:', pageType);
     }
   } catch (error) {
     console.error('ISA voice error:', error);

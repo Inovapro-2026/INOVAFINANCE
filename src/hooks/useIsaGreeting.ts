@@ -44,6 +44,7 @@ export function useIsaGreeting({
 }: UseIsaGreetingOptions) {
   const hasSpoken = useRef(false);
   const isProcessing = useRef(false);
+  const previousPageType = useRef<string | null>(null);
 
   const speakGreeting = useCallback(async () => {
     // Check global voice setting
@@ -52,13 +53,25 @@ export function useIsaGreeting({
       return;
     }
 
-    if (!enabled || !userId || hasSpoken.current || isProcessing.current) return;
+    if (!enabled || !userId || isProcessing.current) return;
+    
+    // Reset hasSpoken when page type changes
+    if (previousPageType.current !== pageType) {
+      hasSpoken.current = false;
+      previousPageType.current = pageType;
+    }
+
+    if (hasSpoken.current) return;
 
     // Check if this tab was already greeted in this session
     if (wasTabGreeted(pageType)) {
+      console.log(`INOVA: Tab ${pageType} already greeted this session`);
       hasSpoken.current = true;
       return;
     }
+    
+    console.log(`INOVA: Starting greeting for ${pageType}`);
+
 
     isProcessing.current = true;
 
