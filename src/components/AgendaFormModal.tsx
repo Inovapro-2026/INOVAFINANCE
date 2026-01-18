@@ -96,15 +96,15 @@ export function AgendaFormModal({ isOpen, onClose, onSubmit, initialTitle = '' }
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
           onClick={onClose}
         >
           <motion.div
-            initial={{ opacity: 0, y: 100, scale: 0.95 }}
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 100, scale: 0.95 }}
+            exit={{ opacity: 0, y: 50, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="w-full max-w-md bg-background rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden"
+            className="w-full max-w-md bg-background rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -119,7 +119,7 @@ export function AgendaFormModal({ isOpen, onClose, onSubmit, initialTitle = '' }
             </div>
 
             {/* Content */}
-            <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+            <div className="p-4 space-y-4 overflow-y-auto flex-1">
               {/* Tipo Toggle */}
               <div className="flex gap-2 p-1 bg-muted rounded-xl">
                 <button

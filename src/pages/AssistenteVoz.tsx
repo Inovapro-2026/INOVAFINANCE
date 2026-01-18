@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, Volume2, VolumeX, Keyboard, Calendar, RefreshCw, X, Send } from 'lucide-react';
+import { Mic, Volume2, VolumeX, Keyboard, Calendar, RefreshCw, X, Send, BellRing } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -117,14 +117,26 @@ export default function AssistenteVoz() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showAgendaModal, setShowAgendaModal] = useState(false);
   const [extractedTitle, setExtractedTitle] = useState('');
+  const [notificationPermission, setNotificationPermission] = useState<'granted' | 'denied' | 'default'>('default');
   const recognitionRef = useRef<any>(null);
 
-  // Request notification permission
+  // Check notification permission on mount
   useEffect(() => {
-    if (!hasNotificationPermission()) {
-      requestNotificationPermission();
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
     }
   }, []);
+
+  // Request notification permission
+  const handleRequestNotification = async () => {
+    const granted = await requestNotificationPermission();
+    if (granted) {
+      setNotificationPermission('granted');
+      toast.success('Notificações ativadas!');
+    } else {
+      setNotificationPermission('denied');
+    }
+  };
 
   // Start voice recognition
   const startListening = useCallback(() => {
@@ -499,6 +511,29 @@ export default function AssistenteVoz() {
           <h2 className="text-xl font-semibold text-white drop-shadow-lg">INOVA</h2>
           <p className="text-sm text-white/80">Sua Assistente de Rotinas</p>
         </div>
+
+        {/* Notification Permission Banner */}
+        {notificationPermission !== 'granted' && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-4 mt-4"
+          >
+            <button
+              onClick={handleRequestNotification}
+              className="w-full flex items-center gap-3 p-3 bg-primary/90 backdrop-blur-sm text-primary-foreground rounded-xl shadow-lg"
+            >
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <BellRing className="w-5 h-5" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="font-medium text-sm">Ativar notificações</p>
+                <p className="text-xs opacity-80">Receba lembretes no horário certo</p>
+              </div>
+              <span className="text-xs bg-white/20 px-2 py-1 rounded-full">Permitir</span>
+            </button>
+          </motion.div>
+        )}
 
         {/* Spacer */}
         <div className="flex-1" />
