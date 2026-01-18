@@ -22,28 +22,47 @@ interface SPTransRequest {
 }
 
 async function authenticate(): Promise<boolean> {
+  if (!SPTRANS_API_TOKEN) {
+    console.error('SPTRANS_API_TOKEN is missing');
+    throw new Error('Token SPTrans não configurado (SPTRANS_API_TOKEN)');
+  }
+
   console.log('Authenticating with SPTrans API...');
-  
-  const url = `${SPTRANS_BASE_URL}/Login/Autenticar?token=${SPTRANS_API_TOKEN}`;
-  
+
+  const url = `${SPTRANS_BASE_URL}/Login/Autenticar?token=${encodeURIComponent(SPTRANS_API_TOKEN)}`;
+
   const response = await fetch(url, {
     method: 'POST',
+    // SPTrans login uses querystring token + cookie session; body is empty.
     headers: {
-      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Content-Length': '0',
     },
   });
-  
-  // Capture session cookies
-  const setCookieHeaders = response.headers.getSetCookie();
-  if (setCookieHeaders && setCookieHeaders.length > 0) {
-    sessionCookies = setCookieHeaders.map(cookie => cookie.split(';')[0]);
+
+  // Capture session cookies (Deno provides getSetCookie; fallback to raw header)
+  const setCookieHeaders = (response.headers as any).getSetCookie?.() as string[] | undefined;
+  const rawSetCookie = response.headers.get('set-cookie');
+
+  const cookies = (setCookieHeaders && setCookieHeaders.length > 0)
+    ? setCookieHeaders
+    : (rawSetCookie ? [rawSetCookie] : []);
+
+  if (cookies.length > 0) {
+    sessionCookies = cookies
+      .flatMap((h) => h.split(/,(?=[^;]+?=)/g))
+      .map((cookie) => cookie.split(';')[0].trim())
+      .filter(Boolean);
     console.log('Session cookies captured:', sessionCookies.length);
+  } else {
+    console.warn('No Set-Cookie header returned from SPTrans login');
   }
-  
-  const result = await response.json();
-  console.log('Authentication result:', result);
-  
-  return result === true;
+
+  const bodyText = (await response.text()).trim();
+  console.log('Authentication status:', response.status, 'body:', bodyText);
+
+  // According to SPTrans docs, the response is boolean true/false.
+  return response.ok && bodyText.toLowerCase() === 'true';
 }
 
 function getCookieHeader(): string {
@@ -51,32 +70,34 @@ function getCookieHeader(): string {
 }
 
 async function makeAuthenticatedRequest(endpoint: string): Promise<any> {
-  // Always authenticate first
+  // Always authenticate first (SPTrans cookie-based session)
   const isAuthenticated = await authenticate();
-  
+
   if (!isAuthenticated) {
     console.error('Failed to authenticate with SPTrans');
     throw new Error('Falha na autenticação com a API SPTrans');
   }
-  
+
   const url = `${SPTRANS_BASE_URL}${endpoint}`;
   console.log('Making authenticated request to:', url);
-  
+
   const response = await fetch(url, {
     method: 'GET',
     headers: {
+      'Accept': 'application/json',
       'Cookie': getCookieHeader(),
     },
   });
-  
+
   if (!response.ok) {
-    console.error('SPTrans API error:', response.status, response.statusText);
+    const errText = (await response.text()).slice(0, 500);
+    console.error('SPTrans API error:', response.status, response.statusText, errText);
     throw new Error(`Erro na API SPTrans: ${response.status}`);
   }
-  
+
   const data = await response.json();
   console.log('SPTrans response received, data length:', JSON.stringify(data).length);
-  
+
   return data;
 }
 
