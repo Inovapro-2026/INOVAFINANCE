@@ -47,6 +47,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ModeToggle } from '@/components/ModeToggle';
+import { useIsaGreeting } from '@/hooks/useIsaGreeting';
 // Calendar Component
 function MiniCalendar({ 
   selectedDate, 
@@ -270,6 +271,15 @@ export default function Agenda() {
   const [view, setView] = useState<'calendar' | 'list'>('calendar');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [itemsByDate, setItemsByDate] = useState<Record<string, number>>({});
+
+  // ISA greeting for Agenda page
+  useIsaGreeting({
+    pageType: 'agenda',
+    userId: user?.userId || 0,
+    userName: user?.fullName || '',
+    initialBalance: 0,
+    enabled: !!user
+  });
 
   // Load items
   const loadItems = useCallback(async () => {

@@ -53,6 +53,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ModeToggle } from '@/components/ModeToggle';
+import { useIsaGreeting } from '@/hooks/useIsaGreeting';
 
 // Add Rotina Dialog
 function AddRotinaDialog({ 
@@ -160,6 +161,15 @@ export default function Rotinas() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [viewMode, setViewMode] = useState<'today' | 'all'>('today');
   const recognitionRef = useRef<any>(null);
+
+  // ISA greeting for Rotinas page
+  useIsaGreeting({
+    pageType: 'rotinas',
+    userId: user?.userId || 0,
+    userName: user?.fullName || '',
+    initialBalance: 0,
+    enabled: !!user
+  });
 
   // Load rotinas
   const loadRotinas = useCallback(async () => {
