@@ -1,0 +1,521 @@
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Mic, Volume2, VolumeX, Keyboard, Calendar, RefreshCw, X, Send } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { speak as speakTts, stopSpeaking } from '@/services/ttsService';
+import { addAgendaItem, formatTime, getTodayDate } from '@/lib/agendaDb';
+import { addRotina, DIAS_SEMANA_LABEL } from '@/lib/agendaDb';
+import { requestNotificationPermission, hasNotificationPermission, sendNotification } from '@/services/notificationService';
+import isaBackground from '@/assets/isa-background.jpg';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+
+// Sugestões rotativas para agenda/rotinas
+const SUGGESTIONS = [
+  { icon: Calendar, text: "Me lembre de reunião amanhã às 14h", color: "blue" },
+  { icon: RefreshCw, text: "Adicionar academia segunda a sexta às 7h", color: "purple" },
+  { icon: Calendar, text: "Consulta dia 22 às 16h", color: "green" },
+  { icon: RefreshCw, text: "Rotina estudar todo dia às 20h", color: "orange" },
+];
+
+// Componente de sugestão rotativa
+function RotatingSuggestion({ onSelect, disabled }: { onSelect: (text: string) => void; disabled: boolean }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % SUGGESTIONS.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const current = SUGGESTIONS[currentIndex];
+  const Icon = current.icon;
+
+  const colorClasses: Record<string, string> = {
+    blue: 'bg-blue-500/20 text-blue-400 border-blue-500/40',
+    purple: 'bg-purple-500/20 text-purple-400 border-purple-500/40',
+    green: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40',
+    orange: 'bg-orange-500/20 text-orange-400 border-orange-500/40',
+  };
+
+  return (
+    <AnimatePresence mode="wait">
+      <motion.button
+        key={currentIndex}
+        disabled={disabled}
+        onClick={() => onSelect(current.text)}
+        className={cn(
+          "px-4 py-2.5 text-sm rounded-full transition-all border flex items-center gap-2 backdrop-blur-sm",
+          disabled ? "opacity-50 cursor-not-allowed" : cn("cursor-pointer", colorClasses[current.color])
+        )}
+        initial={{ opacity: 0, y: 20, scale: 0.9 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -20, scale: 0.9 }}
+        transition={{ duration: 0.4 }}
+        whileHover={!disabled ? { scale: 1.05 } : undefined}
+        whileTap={!disabled ? { scale: 0.95 } : undefined}
+      >
+        <Icon className="w-4 h-4" />
+        <span>{current.text}</span>
+        <div className="flex gap-1 ml-2">
+          {SUGGESTIONS.map((_, i) => (
+            <div key={i} className={cn("w-1.5 h-1.5 rounded-full transition-all", i === currentIndex ? "bg-current" : "bg-current/30")} />
+          ))}
+        </div>
+      </motion.button>
+    </AnimatePresence>
+  );
+}
+
+// Componente de confirmação pop-out
+function ConfirmationPopup({ message, isVisible, onClose }: { message: string; isVisible: boolean; onClose: () => void }) {
+  useEffect(() => {
+    if (isVisible) {
+      const timer = setTimeout(onClose, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible, onClose]);
+
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.div
+          initial={{ opacity: 0, y: 50, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 50, scale: 0.9 }}
+          className="fixed bottom-32 left-4 right-4 z-50"
+        >
+          <div className="bg-green-500/90 backdrop-blur-md text-white px-6 py-4 rounded-2xl shadow-xl flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+              ✓
+            </div>
+            <p className="font-medium flex-1">{message}</p>
+            <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-full">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+export default function AssistenteVoz() {
+  const { user } = useAuth();
+  const [isListening, setIsListening] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [showKeyboard, setShowKeyboard] = useState(false);
+  const [inputText, setInputText] = useState('');
+  const [statusText, setStatusText] = useState('Toque para falar');
+  const [confirmationMessage, setConfirmationMessage] = useState('');
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  // Request notification permission
+  useEffect(() => {
+    if (!hasNotificationPermission()) {
+      requestNotificationPermission();
+    }
+  }, []);
+
+  // Start voice recognition
+  const startListening = useCallback(() => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      toast.error('Reconhecimento de voz não suportado');
+      return;
+    }
+
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'pt-BR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setStatusText('Ouvindo...');
+    };
+
+    recognition.onresult = async (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setStatusText('Processando...');
+      await processCommand(transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      setIsListening(false);
+      setStatusText('Toque para falar');
+      if (event.error === 'not-allowed') {
+        toast.error('Permita o acesso ao microfone');
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      if (!isProcessing) {
+        setStatusText('Toque para falar');
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [isProcessing]);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setIsListening(false);
+    setStatusText('Toque para falar');
+  }, []);
+
+  const handleMicClick = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
+  // Process command - AUTOMATIC flow
+  const processCommand = async (command: string) => {
+    if (!user || !command.trim()) return;
+
+    setIsProcessing(true);
+    setStatusText('Processando...');
+
+    try {
+      // Check if command is about finances (should reject)
+      const financeKeywords = ['saldo', 'dinheiro', 'conta', 'cartão', 'cartao', 'crédito', 'credito', 'débito', 'debito', 'gasto', 'despesa', 'receita', 'transferir', 'pix', 'boleto', 'pagamento', 'pagar conta'];
+      const normalizedCommand = command.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      
+      const isFinanceCommand = financeKeywords.some(keyword => normalizedCommand.includes(keyword));
+      
+      if (isFinanceCommand) {
+        const msg = "Posso te ajudar apenas com agenda e rotinas.";
+        if (voiceEnabled) speakTts(msg);
+        toast.info(msg);
+        setStatusText('Toque para falar');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Call edge function to parse the command
+      const { data, error } = await supabase.functions.invoke('parse-agenda-command', {
+        body: { message: command }
+      });
+
+      if (error) throw error;
+
+      console.log('Parsed command:', data);
+
+      const userMatricula = user.userId;
+
+      if (data.tipo === 'consulta') {
+        // Handle query
+        await handleConsulta(data.consulta_tipo);
+      } else if (data.tipo === 'rotina') {
+        // Create rotina AUTOMATICALLY
+        const rotina = await addRotina({
+          user_matricula: userMatricula,
+          titulo: data.titulo,
+          dias_semana: data.dias_semana,
+          hora: data.hora,
+        });
+
+        if (rotina) {
+          const diasLabel = data.dias_semana.length === 7
+            ? 'todos os dias'
+            : data.dias_semana.length === 5
+              ? 'segunda a sexta'
+              : data.dias_semana.map((d: string) => DIAS_SEMANA_LABEL[d] || d).join(', ');
+
+          const confirmation = `✅ Rotina criada: ${data.titulo}, ${diasLabel} às ${formatTime(data.hora)}.`;
+          
+          setConfirmationMessage(confirmation);
+          setShowConfirmation(true);
+          
+          if (voiceEnabled) {
+            speakTts(`Rotina adicionada: ${data.titulo}, ${diasLabel} às ${formatTime(data.hora)}.`);
+          }
+
+          // Schedule notification
+          scheduleRotinaNotification(data.titulo, data.hora, data.dias_semana);
+        }
+      } else if (data.tipo === 'lembrete') {
+        // Create agenda item AUTOMATICALLY
+        const item = await addAgendaItem({
+          user_matricula: userMatricula,
+          titulo: data.titulo,
+          data: data.data,
+          hora: data.hora,
+          tipo: 'lembrete',
+        });
+
+        if (item) {
+          const dateLabel = getDateLabel(data.data);
+          const confirmation = `✅ Lembrete agendado para ${dateLabel} às ${formatTime(data.hora)}.`;
+          
+          setConfirmationMessage(confirmation);
+          setShowConfirmation(true);
+          
+          if (voiceEnabled) {
+            speakTts(`Lembrete salvo: ${data.titulo}, ${dateLabel} às ${formatTime(data.hora)}.`);
+          }
+
+          // Schedule notification
+          scheduleAgendaNotification(item.id, data.titulo, data.data, data.hora);
+        }
+      }
+    } catch (err) {
+      console.error('Error processing command:', err);
+      toast.error('Erro ao processar comando');
+    } finally {
+      setIsProcessing(false);
+      setStatusText('Toque para falar');
+    }
+  };
+
+  // Handle consulta (query)
+  const handleConsulta = async (tipo: 'hoje' | 'amanha' | 'semana') => {
+    if (!user) return;
+
+    const userMatricula = user.userId;
+    let targetDate = new Date();
+    if (tipo === 'amanha') {
+      targetDate.setDate(targetDate.getDate() + 1);
+    }
+
+    const dateStr = targetDate.toISOString().split('T')[0];
+    
+    const { data: items } = await supabase
+      .from('agenda_items')
+      .select('*')
+      .eq('user_matricula', userMatricula)
+      .eq('data', dateStr)
+      .order('hora', { ascending: true });
+
+    const dayLabel = tipo === 'hoje' ? 'hoje' : 'amanhã';
+
+    if (!items || items.length === 0) {
+      const msg = `Você não tem lembretes para ${dayLabel}.`;
+      if (voiceEnabled) speakTts(msg);
+      toast.info(msg);
+    } else {
+      const itemList = items.map((i: any) => `${i.titulo} às ${formatTime(i.hora)}`).join(', ');
+      const msg = `Para ${dayLabel} você tem: ${itemList}.`;
+      if (voiceEnabled) speakTts(msg);
+      toast.success(`${items.length} lembrete(s) para ${dayLabel}`);
+    }
+  };
+
+  // Get date label
+  const getDateLabel = (dateStr: string): string => {
+    const today = getTodayDate();
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+    if (dateStr === today) return 'hoje';
+    if (dateStr === tomorrowStr) return 'amanhã';
+
+    const date = new Date(dateStr + 'T12:00:00');
+    return date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' });
+  };
+
+  // Schedule agenda notification
+  const scheduleAgendaNotification = (id: string, titulo: string, data: string, hora: string) => {
+    const itemDateTime = new Date(`${data}T${hora}`);
+    const notifyTime = new Date(itemDateTime.getTime() - 15 * 60 * 1000); // 15 min before
+    const now = new Date();
+
+    const delay = notifyTime.getTime() - now.getTime();
+
+    if (delay > 0) {
+      setTimeout(() => {
+        sendNotification(`⏰ ${titulo}`, 'Em 15 minutos', `agenda-${id}`);
+      }, delay);
+    }
+
+    // Also at exact time
+    const exactDelay = itemDateTime.getTime() - now.getTime();
+    if (exactDelay > 0) {
+      setTimeout(() => {
+        sendNotification(`🔔 ${titulo}`, 'Agora!', `agenda-now-${id}`);
+      }, exactDelay);
+    }
+  };
+
+  // Schedule rotina notification
+  const scheduleRotinaNotification = (titulo: string, hora: string, dias: string[]) => {
+    // This is a simplified version - in production you'd use a service worker
+    console.log('Scheduled rotina notification:', { titulo, hora, dias });
+  };
+
+  // Handle text input submit
+  const handleTextSubmit = async () => {
+    if (!inputText.trim()) return;
+    await processCommand(inputText);
+    setInputText('');
+    setShowKeyboard(false);
+  };
+
+  // Handle suggestion click
+  const handleSuggestionClick = async (text: string) => {
+    await processCommand(text);
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground">Faça login para acessar</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen relative overflow-hidden pb-24">
+      {/* Background Image */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src={isaBackground}
+          alt="ISA Background"
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-transparent to-background/90" />
+      </div>
+
+      {/* Content */}
+      <div className="relative z-10 flex flex-col h-screen">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 pt-8">
+          <div className="text-white">
+            <p className="text-sm opacity-80">Olá,</p>
+            <h1 className="text-xl font-bold flex items-center gap-2">
+              {user.fullName?.split(' ')[0] || 'Usuário'} 👋
+            </h1>
+          </div>
+          
+          {/* Voice Toggle */}
+          <button
+            onClick={() => setVoiceEnabled(!voiceEnabled)}
+            className={cn(
+              "w-12 h-12 rounded-xl flex items-center justify-center backdrop-blur-md transition-all",
+              voiceEnabled ? "bg-primary/80 text-white" : "bg-white/20 text-white/60"
+            )}
+          >
+            {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+          </button>
+        </div>
+
+        {/* Title */}
+        <div className="text-center px-4 mt-4">
+          <h2 className="text-xl font-semibold text-white drop-shadow-lg">INOVA</h2>
+          <p className="text-sm text-white/80">Sua Assistente de Rotinas</p>
+        </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Microphone Button */}
+        <div className="flex flex-col items-center">
+          <motion.button
+            onClick={handleMicClick}
+            disabled={isProcessing}
+            className={cn(
+              "w-24 h-24 rounded-full flex items-center justify-center shadow-2xl transition-all",
+              isListening
+                ? "bg-red-500 shadow-red-500/50"
+                : "bg-gradient-to-br from-blue-500 to-blue-600 shadow-blue-500/40"
+            )}
+            whileTap={{ scale: 0.95 }}
+            animate={isListening ? {
+              scale: [1, 1.1, 1],
+              boxShadow: ['0 0 0 0 rgba(239, 68, 68, 0.4)', '0 0 0 20px rgba(239, 68, 68, 0)', '0 0 0 0 rgba(239, 68, 68, 0)']
+            } : {}}
+            transition={isListening ? { repeat: Infinity, duration: 1.5 } : {}}
+          >
+            <Mic className={cn("w-10 h-10 text-white", isListening && "animate-pulse")} />
+          </motion.button>
+
+          {/* Status Text */}
+          <motion.p
+            className="mt-4 text-lg font-medium text-white/90"
+            animate={{ opacity: isProcessing ? [1, 0.5, 1] : 1 }}
+            transition={isProcessing ? { repeat: Infinity, duration: 1 } : {}}
+          >
+            {statusText}
+          </motion.p>
+        </div>
+
+        {/* Suggestions */}
+        <div className="flex justify-center px-4 mt-6">
+          <RotatingSuggestion
+            onSelect={handleSuggestionClick}
+            disabled={isListening || isProcessing}
+          />
+        </div>
+
+        {/* Keyboard Toggle */}
+        <div className="flex justify-center mt-4 mb-8">
+          <button
+            onClick={() => setShowKeyboard(!showKeyboard)}
+            className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-white/20 transition-all"
+          >
+            <Keyboard className="w-5 h-5 text-white" />
+          </button>
+        </div>
+
+        {/* Keyboard Input */}
+        <AnimatePresence>
+          {showKeyboard && (
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className="absolute bottom-24 left-4 right-4"
+            >
+              <div className="flex gap-2 bg-white/90 dark:bg-gray-900/90 backdrop-blur-md p-3 rounded-2xl shadow-xl">
+                <Input
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  placeholder="Digite seu comando..."
+                  className="flex-1 bg-transparent border-0 focus-visible:ring-0"
+                  onKeyDown={(e) => e.key === 'Enter' && handleTextSubmit()}
+                  autoFocus
+                />
+                <Button
+                  size="icon"
+                  onClick={handleTextSubmit}
+                  disabled={!inputText.trim() || isProcessing}
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setShowKeyboard(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Confirmation Popup */}
+      <ConfirmationPopup
+        message={confirmationMessage}
+        isVisible={showConfirmation}
+        onClose={() => setShowConfirmation(false)}
+      />
+    </div>
+  );
+}

@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ModeToggle } from '@/components/ModeToggle';
 
 // Add Rotina Dialog
 function AddRotinaDialog({ 
@@ -366,6 +367,9 @@ export default function Rotinas() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
+      {/* Mode Toggle */}
+      <ModeToggle />
+
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border/50 px-4 py-4">
         <div className="flex items-center justify-between">

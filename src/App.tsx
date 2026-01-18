@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AppModeProvider } from "./contexts/AppModeContext";
 import { BottomNav } from "./components/BottomNav";
 import { VideoSplash } from "./components/VideoSplash";
 import Index from "./pages/Index";
@@ -17,6 +18,7 @@ import Card from "./pages/Card";
 import Transactions from "./pages/Transactions";
 import Goals from "./pages/Goals";
 import AI from "./pages/AI";
+import AssistenteVoz from "./pages/AssistenteVoz";
 import Planner from "./pages/Planner";
 import Agenda from "./pages/Agenda";
 import Rotinas from "./pages/Rotinas";
@@ -51,6 +53,7 @@ function AppRoutes() {
         <Route path="/transactions" element={<Transactions />} />
         <Route path="/goals" element={<Goals />} />
         <Route path="/ai" element={<AI />} />
+        <Route path="/assistente" element={<AssistenteVoz />} />
         <Route path="/planner" element={<Planner />} />
         <Route path="/agenda" element={<Agenda />} />
         <Route path="/rotinas" element={<Rotinas />} />
@@ -111,7 +114,9 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <AppContent />
+          <AppModeProvider>
+            <AppContent />
+          </AppModeProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

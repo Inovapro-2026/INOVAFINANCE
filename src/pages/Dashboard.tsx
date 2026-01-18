@@ -24,6 +24,7 @@ import { ptBR } from 'date-fns/locale';
 import { useIsaGreeting } from '@/hooks/useIsaGreeting';
 import { isVoiceEnabled, setVoiceEnabled } from '@/services/isaVoiceService';
 import { Switch } from '@/components/ui/switch';
+import { ModeToggle } from '@/components/ModeToggle';
 
 const CHART_COLORS = ['#7A5CFA', '#4A90FF', '#22C55E', '#F59E0B', '#EF4444', '#8B5CF6'];
 
@@ -172,11 +173,14 @@ export default function Dashboard() {
 
   return (
     <motion.div
-      className="min-h-screen pb-28 px-4 pt-6"
+      className="min-h-screen pb-28 px-4 pt-2"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
+      {/* Mode Toggle */}
+      <ModeToggle />
+
       {/* Floating WhatsApp Support Button - Only on Home */}
       {isHomePage && (
         <motion.button
