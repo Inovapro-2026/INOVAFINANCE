@@ -4,9 +4,15 @@
 import { speakWithElevenLabs } from './elevenlabsTtsService';
 import { speakNative } from './nativeTtsService';
 import { stopAllAudio } from './audioManager';
+import { 
+  stopAllVoice, 
+  wasTabGreetedSession, 
+  markTabGreetedSession,
+  clearTabGreetings,
+  wasDailyGreetingSpoken,
+  markDailyGreetingSpoken
+} from './voiceQueueService';
 
-const ISA_GREETING_KEY = 'isa_last_greeting_date';
-const ISA_TAB_GREETED_KEY = 'isa_tab_greeted';
 const ISA_VOICE_ENABLED_KEY = 'isa_voice_enabled';
 
 // Main pages that use ElevenLabs (premium voice)
@@ -28,7 +34,7 @@ export function setVoiceEnabled(enabled: boolean): void {
   localStorage.setItem(ISA_VOICE_ENABLED_KEY, enabled.toString());
   // Clear greeted tabs when voice is enabled so greetings can play again
   if (enabled) {
-    sessionStorage.removeItem(ISA_TAB_GREETED_KEY);
+    clearTabGreetings();
     console.log('ISA: Voice enabled, cleared greeted tabs for fresh greetings');
   }
 }
@@ -130,42 +136,31 @@ function numberToWords(num: number): string {
 }
 
 /**
- * Check if this is the first access of the day
+ * Check if this is the first access of the day (uses centralized service)
  */
 export function isFirstAccessToday(): boolean {
-  const lastGreeting = localStorage.getItem(ISA_GREETING_KEY);
-  const today = new Date().toDateString();
-  return lastGreeting !== today;
+  return !wasDailyGreetingSpoken();
 }
 
 /**
- * Mark today as greeted
+ * Mark today as greeted (uses centralized service)
  */
 export function markGreetedToday(): void {
-  const today = new Date().toDateString();
-  localStorage.setItem(ISA_GREETING_KEY, today);
+  markDailyGreetingSpoken();
 }
 
 /**
- * Check if a specific tab was already greeted in this session
+ * Check if a specific tab was already greeted in this session (uses centralized service)
  */
 export function wasTabGreeted(tabName: string): boolean {
-  const greetedTabs = sessionStorage.getItem(ISA_TAB_GREETED_KEY);
-  if (!greetedTabs) return false;
-  const tabs = JSON.parse(greetedTabs) as string[];
-  return tabs.includes(tabName);
+  return wasTabGreetedSession(tabName);
 }
 
 /**
- * Mark a tab as greeted for this session
+ * Mark a tab as greeted for this session (uses centralized service)
  */
 export function markTabGreeted(tabName: string): void {
-  const greetedTabs = sessionStorage.getItem(ISA_TAB_GREETED_KEY);
-  const tabs = greetedTabs ? JSON.parse(greetedTabs) as string[] : [];
-  if (!tabs.includes(tabName)) {
-    tabs.push(tabName);
-    sessionStorage.setItem(ISA_TAB_GREETED_KEY, JSON.stringify(tabs));
-  }
+  markTabGreetedSession(tabName);
 }
 
 /**
@@ -180,6 +175,7 @@ export function getTimeGreeting(): string {
 
 /**
  * Speak with ISA - automatically selects ElevenLabs or native voice based on context
+ * IMPORTANT: Always stops any current audio before speaking
  * @param text - Text to speak
  * @param pageType - The page type to determine voice engine
  * @param forceNative - Force use of native voice
@@ -197,7 +193,8 @@ export async function isaSpeak(
 
   console.log(`ISA: Attempting to speak on ${pageType}:`, text.substring(0, 50) + '...');
 
-  // Stop any ongoing speech
+  // CRITICAL: Stop ALL audio/voice before speaking
+  stopAllVoice();
   stopAllAudio();
 
   const usePremiumVoice = !forceNative && PREMIUM_VOICE_PAGES.includes(pageType.toLowerCase());
@@ -227,9 +224,10 @@ export async function isaSpeak(
 }
 
 /**
- * Stop ISA from speaking
+ * Stop ISA from speaking - uses centralized voice queue
  */
 export function isaStop(): void {
+  stopAllVoice();
   stopAllAudio();
 }
 

@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react';
 import introVideo from '@/assets/intro-video.mp4';
 import introAudio from '@/assets/intro-audio.mp3';
 import { stopAllAudio } from '@/services/audioManager';
+import { wasIntroPlayed, markIntroPlayed, stopAllVoice } from '@/services/voiceQueueService';
 
 interface VideoSplashProps {
   onComplete: () => void;
@@ -13,11 +14,19 @@ export function VideoSplash({ onComplete }: VideoSplashProps) {
   const hasCompletedRef = useRef(false);
 
   useEffect(() => {
+    // CHECK: If intro was already played on this device, skip immediately
+    if (wasIntroPlayed()) {
+      console.log('[VideoSplash] Intro already played on this device, skipping');
+      onComplete();
+      return;
+    }
+
     const video = videoRef.current;
     const audio = audioRef.current;
     if (!video || !audio) return;
 
-    // Stop any existing audio first
+    // Stop any existing audio/voice first
+    stopAllVoice();
     stopAllAudio();
 
     // Auto-play video and audio together
@@ -26,9 +35,10 @@ export function VideoSplash({ onComplete }: VideoSplashProps) {
         await Promise.all([video.play(), audio.play()]);
       } catch (error) {
         console.error('Error playing media:', error);
-        // If autoplay fails, go to login after a short delay
+        // If autoplay fails, mark as played and go to login
         if (!hasCompletedRef.current) {
           hasCompletedRef.current = true;
+          markIntroPlayed();
           setTimeout(onComplete, 1000);
         }
       }
@@ -42,6 +52,9 @@ export function VideoSplash({ onComplete }: VideoSplashProps) {
         hasCompletedRef.current = true;
         video.pause();
         audio.pause();
+        // Mark intro as played on this device
+        markIntroPlayed();
+        console.log('[VideoSplash] Intro completed and marked as played');
         // Small delay to ensure audio is fully stopped before login audio starts
         setTimeout(onComplete, 300);
       }

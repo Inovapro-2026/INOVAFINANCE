@@ -1,4 +1,9 @@
 // INOVA Greeting Hook - Manages voice greetings for each page
+// RULES:
+// - Each tab has ONE specific voice that plays ONCE per session
+// - No overlapping voices
+// - Short messages only (max 2 sentences)
+
 import { useEffect, useRef, useCallback } from 'react';
 import {
   isaSpeak,
@@ -14,6 +19,7 @@ import {
   calculateDaysUntilDay,
   isVoiceEnabled
 } from '@/services/isaVoiceService';
+import { stopAllVoice, isVoicePlaying } from '@/services/voiceQueueService';
 import { calculateBalance, getTransactions, getGoals } from '@/lib/db';
 import {
   getScheduledPayments,
@@ -49,7 +55,7 @@ export function useIsaGreeting({
   const speakGreeting = useCallback(async () => {
     // Check global voice setting
     if (!isVoiceEnabled()) {
-      console.log('INOVA: Voice is globally disabled');
+      console.log('[IsaGreeting] Voice is globally disabled');
       return;
     }
 
@@ -65,12 +71,20 @@ export function useIsaGreeting({
 
     // Check if this tab was already greeted in this session
     if (wasTabGreeted(pageType)) {
-      console.log(`INOVA: Tab ${pageType} already greeted this session`);
+      console.log(`[IsaGreeting] Tab ${pageType} already greeted this session`);
       hasSpoken.current = true;
       return;
     }
+
+    // Wait if any voice is currently playing
+    if (isVoicePlaying()) {
+      console.log(`[IsaGreeting] Another voice is playing, waiting...`);
+      return;
+    }
     
-    console.log(`INOVA: Starting greeting for ${pageType}`);
+    console.log(`[IsaGreeting] Starting greeting for ${pageType}`);
+
+    isProcessing.current = true;
 
 
     isProcessing.current = true;
@@ -93,13 +107,16 @@ export function useIsaGreeting({
         await speakPageSpecificGreeting();
       }
     } catch (error) {
-      console.error('ISA greeting error:', error);
+      console.error('[IsaGreeting] Error:', error);
     } finally {
       isProcessing.current = false;
     }
   }, [pageType, userId, userName, enabled, initialBalance, creditLimit, creditUsed]);
 
   const speakPageSpecificGreeting = async () => {
+    // Stop any playing audio before starting
+    stopAllVoice();
+    
     try {
       let message = '';
 
@@ -192,15 +209,15 @@ export function useIsaGreeting({
         hasSpoken.current = true;
       }
     } catch (error) {
-      console.error('ISA page greeting error:', error);
+      console.error('[IsaGreeting] Page greeting error:', error);
     }
   };
 
   useEffect(() => {
-    // Small delay to ensure page is loaded
+    // Delay to ensure page is loaded and no other audio is playing
     const timer = setTimeout(() => {
       speakGreeting();
-    }, 500);
+    }, 800);
 
     return () => clearTimeout(timer);
   }, [speakGreeting]);
