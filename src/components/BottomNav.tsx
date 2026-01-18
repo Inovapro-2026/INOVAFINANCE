@@ -6,21 +6,34 @@ import {
   Mic,
   Calendar,
   RefreshCw,
-  User
+  User,
+  FileText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAppMode } from '@/contexts/AppModeContext';
 
 export function BottomNav() {
   const location = useLocation();
+  const { mode } = useAppMode();
   
-  const navItems = [
+  // Modo Finanças: Home | Cartão | ISA | Planejamento | Perfil
+  const financasItems = [
     { path: '/', icon: Home, label: 'Home' },
     { path: '/card', icon: CreditCard, label: 'Cartão' },
     { path: '/ai', icon: Mic, label: 'ISA', isCenter: true },
-    { path: '/agenda', icon: Calendar, label: 'Agenda' },
-    { path: '/rotinas', icon: RefreshCw, label: 'Rotinas' },
+    { path: '/planner', icon: FileText, label: 'Planejar' },
     { path: '/goals', icon: User, label: 'Perfil' },
   ];
+
+  // Modo Rotinas: Agenda | Rotinas | IA | Perfil
+  const rotinasItems = [
+    { path: '/agenda', icon: Calendar, label: 'Agenda' },
+    { path: '/rotinas', icon: RefreshCw, label: 'Rotinas' },
+    { path: '/assistente', icon: Mic, label: 'ISA', isCenter: true },
+    { path: '/goals', icon: User, label: 'Perfil' },
+  ];
+
+  const navItems = mode === 'financas' ? financasItems : rotinasItems;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50">
