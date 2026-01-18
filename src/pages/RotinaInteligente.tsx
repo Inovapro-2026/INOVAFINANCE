@@ -22,7 +22,8 @@ import {
   Locate,
   Volume2,
   VolumeX,
-  Info
+  Info,
+  Database
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,6 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from '@/components/ui/scroll-area';
+import * as gtfs from '@/services/gtfsService';
 
 interface TransportRoutine {
   id: string;
@@ -66,16 +68,16 @@ interface TransportRoutine {
 }
 
 interface BusLine {
-  codigoLinha: number;
+  codigoLinha: number | string;
   letreiro: string;
   sentido: string;
-  sentidoCodigo: number;
+  sentidoCodigo?: number;
   terminalPrincipal: string;
   terminalSecundario: string;
 }
 
 interface BusStop {
-  codigoParada: number;
+  codigoParada: number | string;
   nome: string;
   endereco: string;
   latitude: number;
@@ -116,10 +118,12 @@ export default function RotinaInteligente() {
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [lastAlertTime, setLastAlertTime] = useState<number>(0);
   
-  // SPTrans data
+  // SPTrans/GTFS data
   const [predictions, setPredictions] = useState<LinePrediction[]>([]);
   const [selectedPrediction, setSelectedPrediction] = useState<LinePrediction | null>(null);
   const [nextBusMinutes, setNextBusMinutes] = useState<number | null>(null);
+  const [dataSource, setDataSource] = useState<'gtfs' | 'api' | null>(null);
+  const [gtfsLoading, setGtfsLoading] = useState(false);
   
   // Config state
   const [configStep, setConfigStep] = useState<'linha' | 'parada' | 'horario'>('linha');
@@ -187,53 +191,68 @@ export default function RotinaInteligente() {
     loadRoutine();
   }, [loadRoutine]);
 
-  // Get bus predictions
+  // Get bus predictions (GTFS-based)
   const fetchPredictions = useCallback(async () => {
     if (!selectedStop) return;
     
     setIsRefreshing(true);
     
     try {
-      const body: any = {
-        action: 'previsao-parada',
-        codigoParada: selectedStop.codigoParada
-      };
+      // Use GTFS data (local, works without external API)
+      const stopId = String(selectedStop.codigoParada);
+      const routeId = selectedLine ? String(selectedLine.codigoLinha) : undefined;
       
-      if (selectedLine) {
-        body.codigoLinha = selectedLine.codigoLinha;
-      }
+      const arrivals = await gtfs.getNextArrivals(stopId, routeId);
+      setDataSource('gtfs');
       
-      const { data, error } = await supabase.functions.invoke('sptrans-api', { body });
-      
-      if (error) throw error;
-      
-      if (data.success) {
-        const linhas = data.linhas || [];
-        setPredictions(linhas);
+      if (arrivals.length > 0) {
+        // Group by route
+        const byRoute = new Map<string, typeof arrivals>();
+        arrivals.forEach(a => {
+          const key = a.route.route_id;
+          if (!byRoute.has(key)) byRoute.set(key, []);
+          byRoute.get(key)!.push(a);
+        });
         
-        // Find prediction for selected line
-        if (selectedLine) {
-          const linePred = linhas.find((l: LinePrediction) => l.codigoLinha === selectedLine.codigoLinha);
-          setSelectedPrediction(linePred || null);
-          
-          if (linePred && linePred.veiculos.length > 0) {
-            const nextBus = linePred.veiculos[0];
-            setNextBusMinutes(nextBus.previsaoMinutos);
-            
-            // Smart alerts
-            checkAndTriggerAlert(nextBus.previsaoMinutos, linePred.letreiro);
-          } else {
-            setNextBusMinutes(null);
-          }
-        } else if (linhas.length > 0) {
-          setSelectedPrediction(linhas[0]);
-          if (linhas[0].veiculos.length > 0) {
-            setNextBusMinutes(linhas[0].veiculos[0].previsaoMinutos);
-          }
+        const linePreds: LinePrediction[] = Array.from(byRoute.entries()).map(([routeId, arr]) => ({
+          codigoLinha: parseInt(routeId) || 0,
+          letreiro: arr[0].route.route_short_name || routeId,
+          sentido: arr[0].route.route_long_name || '',
+          destino: arr[0].route.route_long_name || '',
+          veiculos: arr.map(a => ({
+            prefixo: '',
+            acessivel: false,
+            previsaoMinutos: a.minutesUntil,
+            previsaoHorario: a.arrivalTime,
+            latitude: 0,
+            longitude: 0,
+          })),
+        }));
+        
+        setPredictions(linePreds);
+        
+        // Select first or matching
+        const matchingPred = selectedLine 
+          ? linePreds.find(p => String(p.codigoLinha) === String(selectedLine.codigoLinha))
+          : linePreds[0];
+        
+        setSelectedPrediction(matchingPred || linePreds[0] || null);
+        
+        if (matchingPred && matchingPred.veiculos.length > 0) {
+          const nextBus = matchingPred.veiculos[0];
+          setNextBusMinutes(nextBus.previsaoMinutos);
+          checkAndTriggerAlert(nextBus.previsaoMinutos, matchingPred.letreiro);
+        } else {
+          setNextBusMinutes(arrivals[0]?.minutesUntil ?? null);
         }
+      } else {
+        setPredictions([]);
+        setSelectedPrediction(null);
+        setNextBusMinutes(null);
       }
     } catch (err) {
       console.error('Error fetching predictions:', err);
+      toast.error('Erro ao buscar previsões');
     } finally {
       setIsRefreshing(false);
     }
@@ -288,25 +307,24 @@ export default function RotinaInteligente() {
     }
   }, [selectedStop, fetchPredictions]);
 
-  // Search bus lines
+  // Search bus lines (GTFS-based)
   const searchLines = async () => {
     if (!searchTerm.trim() || searchTerm.length < 2) return;
     
     setIsSearching(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sptrans-api', {
-        body: {
-          action: 'buscar-linhas',
-          termo: searchTerm
-        }
-      });
+      const routes = await gtfs.searchRoutes(searchTerm);
       
-      if (error) throw error;
+      const mapped: BusLine[] = routes.map(r => ({
+        codigoLinha: r.route_id,
+        letreiro: r.route_short_name || r.route_id,
+        sentido: r.route_long_name || '',
+        terminalPrincipal: r.route_long_name?.split(' - ')[0] || '',
+        terminalSecundario: r.route_long_name?.split(' - ')[1] || '',
+      }));
       
-      if (data.success && data.linhas) {
-        setSearchResults(data.linhas);
-      } else {
-        setSearchResults([]);
+      setSearchResults(mapped);
+      if (mapped.length === 0) {
         toast.info('Nenhuma linha encontrada');
       }
     } catch (err) {
@@ -317,7 +335,7 @@ export default function RotinaInteligente() {
     }
   };
 
-  // Get user location
+  // Get user location and nearby stops (GTFS-based)
   const getUserLocation = async () => {
     setIsLoadingLocation(true);
     
@@ -332,28 +350,24 @@ export default function RotinaInteligente() {
         const { latitude, longitude } = position.coords;
         setUserLocation({ lat: latitude, lng: longitude });
         
-        // Search nearby stops if we have a selected line
-        if (selectedLine) {
-          try {
-            const { data, error } = await supabase.functions.invoke('sptrans-api', {
-              body: {
-                action: 'paradas-proximas',
-                lat: latitude,
-                lng: longitude,
-                raio: 1000,
-                codigoLinha: selectedLine.codigoLinha
-              }
-            });
-            
-            if (error) throw error;
-            
-            if (data.success && data.paradas) {
-              setNearbyStops(data.paradas);
-              setLineStops(data.paradas);
-            }
-          } catch (err) {
-            console.error('Error getting nearby stops:', err);
-          }
+        try {
+          // Use GTFS for nearby stops
+          const nearby = await gtfs.getNearbyStops(latitude, longitude, 1000);
+          
+          const mapped: BusStop[] = nearby.map(s => ({
+            codigoParada: s.stop_id,
+            nome: s.stop_name,
+            endereco: s.stop_desc || '',
+            latitude: s.stop_lat,
+            longitude: s.stop_lon,
+            distancia: Math.round(s.distance),
+          }));
+          
+          setNearbyStops(mapped);
+          setLineStops(mapped);
+        } catch (err) {
+          console.error('Error getting nearby stops:', err);
+          toast.error('Erro ao buscar paradas próximas');
         }
         
         setIsLoadingLocation(false);
@@ -367,29 +381,40 @@ export default function RotinaInteligente() {
     );
   };
 
-  // Select a line and load its stops
+  // Select a line and load its stops (GTFS-based)
   const handleSelectLine = async (line: BusLine) => {
     setSelectedLine(line);
     setConfigStep('parada');
     setSearchResults([]);
     
-    // Get stops for this line
     try {
-      const { data, error } = await supabase.functions.invoke('sptrans-api', {
-        body: {
-          action: 'paradas-proximas',
-          lat: userLocation?.lat || -23.5505,
-          lng: userLocation?.lng || -46.6333,
-          raio: 2000,
-          codigoLinha: line.codigoLinha
-        }
-      });
+      // Get stops for this route from GTFS
+      const stops = await gtfs.getStopsForRoute(String(line.codigoLinha));
       
-      if (error) throw error;
+      const mapped: BusStop[] = stops.map(s => ({
+        codigoParada: s.stop_id,
+        nome: s.stop_name,
+        endereco: s.stop_desc || '',
+        latitude: s.stop_lat,
+        longitude: s.stop_lon,
+      }));
       
-      if (data.success && data.paradas) {
-        setLineStops(data.paradas);
+      // If we have user location, calculate distances and sort
+      if (userLocation) {
+        mapped.forEach(s => {
+          const R = 6371000;
+          const dLat = (s.latitude - userLocation.lat) * Math.PI / 180;
+          const dLon = (s.longitude - userLocation.lng) * Math.PI / 180;
+          const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(userLocation.lat * Math.PI / 180) * Math.cos(s.latitude * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          s.distancia = Math.round(R * c);
+        });
+        mapped.sort((a, b) => (a.distancia || 9999) - (b.distancia || 9999));
       }
+      
+      setLineStops(mapped);
     } catch (err) {
       console.error('Error loading stops:', err);
       toast.error('Erro ao carregar paradas');
@@ -749,11 +774,14 @@ export default function RotinaInteligente() {
           <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                <Database className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-medium text-sm">Dados em tempo real</p>
+                  <p className="font-medium text-sm flex items-center gap-2">
+                    Dados GTFS
+                    {dataSource === 'gtfs' && <Badge variant="outline" className="text-xs">Offline</Badge>}
+                  </p>
                   <p className="text-xs text-muted-foreground">
-                    As informações são atualizadas automaticamente a cada 30 segundos usando a API oficial Olho Vivo da SPTrans.
+                    Usando dados oficiais de transporte público (GTFS). Os horários são programados e podem variar.
                   </p>
                 </div>
               </div>
