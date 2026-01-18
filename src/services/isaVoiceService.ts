@@ -16,7 +16,13 @@ import {
 const ISA_VOICE_ENABLED_KEY = 'isa_voice_enabled';
 
 // Main pages that use ElevenLabs (premium voice)
-const PREMIUM_VOICE_PAGES = ['dashboard', 'planner', 'card', 'goals', 'ai'];
+const PREMIUM_VOICE_PAGES = ['dashboard', 'planner', 'card', 'goals', 'ai', 'agenda', 'rotinas'];
+
+// Financial pages that should only greet once per login session
+const FINANCIAL_PAGES = ['dashboard', 'planner', 'card'];
+
+// Session key to track if financial greeting was given
+const FINANCIAL_GREETED_KEY = 'financial_greeted_session';
 
 /**
  * Check if ISA voice is enabled
@@ -161,6 +167,34 @@ export function wasTabGreeted(tabName: string): boolean {
  */
 export function markTabGreeted(tabName: string): void {
   markTabGreetedSession(tabName);
+}
+
+/**
+ * Check if financial pages were greeted this session (one-time per login)
+ */
+export function wasFinancialGreeted(): boolean {
+  return sessionStorage.getItem(FINANCIAL_GREETED_KEY) === 'true';
+}
+
+/**
+ * Mark financial pages as greeted for this session
+ */
+export function markFinancialGreeted(): void {
+  sessionStorage.setItem(FINANCIAL_GREETED_KEY, 'true');
+}
+
+/**
+ * Clear financial greeted state (call on logout or session end)
+ */
+export function clearFinancialGreeted(): void {
+  sessionStorage.removeItem(FINANCIAL_GREETED_KEY);
+}
+
+/**
+ * Check if a page is a financial page
+ */
+export function isFinancialPage(pageType: string): boolean {
+  return FINANCIAL_PAGES.includes(pageType.toLowerCase());
 }
 
 /**

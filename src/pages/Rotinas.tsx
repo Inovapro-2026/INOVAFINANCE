@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { speak as speakTts } from '@/services/ttsService';
+import { isaSpeak } from '@/services/isaVoiceService';
 import { 
   getRotinas, 
   addRotina, 
@@ -54,6 +54,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ModeToggle } from '@/components/ModeToggle';
 import { useIsaGreeting } from '@/hooks/useIsaGreeting';
+import { BrazilClock } from '@/components/BrazilClock';
 
 // Add Rotina Dialog
 function AddRotinaDialog({ 
@@ -202,6 +203,42 @@ export default function Rotinas() {
   const totalCount = todayRotinas.length;
   const progressPercent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
+  // Track announced rotinas to avoid repeating
+  const announcedRotinasRef = useRef<Set<string>>(new Set());
+
+  // Check for upcoming rotinas and announce them
+  useEffect(() => {
+    const checkUpcomingRotinas = () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentTimeMinutes = currentHour * 60 + currentMinute;
+
+      // Check for rotinas starting in the next 5 minutes
+      todayRotinas.forEach(async (rotina) => {
+        if (isRotinaCompletedToday(rotina.id, completions)) return;
+        if (announcedRotinasRef.current.has(rotina.id)) return;
+
+        const [h, m] = rotina.hora.split(':').map(Number);
+        const rotinaTimeMinutes = h * 60 + m;
+        const minutesUntil = rotinaTimeMinutes - currentTimeMinutes;
+
+        // Announce if rotina is in the next 5 minutes
+        if (minutesUntil > 0 && minutesUntil <= 5) {
+          announcedRotinasRef.current.add(rotina.id);
+          await isaSpeak(`Atenção: ${rotina.titulo} em ${minutesUntil} ${minutesUntil === 1 ? 'minuto' : 'minutos'}.`, 'rotinas');
+        }
+      });
+    };
+
+    // Check every minute
+    const interval = setInterval(checkUpcomingRotinas, 60000);
+    // Also check immediately
+    checkUpcomingRotinas();
+
+    return () => clearInterval(interval);
+  }, [todayRotinas, completions]);
+
   // Voice input handling
   const startListening = useCallback(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -329,13 +366,13 @@ export default function Rotinas() {
         const totalItems = filteredItems.length + filteredRotinas.length;
         
         if (totalItems === 0) {
-          speakTts(`Você não tem nada agendado ${timeLabel}.`);
+          await isaSpeak(`Você não tem nada agendado ${timeLabel}.`, 'rotinas');
         } else {
           const agendaList = filteredItems.map((i: any) => `${i.titulo} às ${formatTime(i.hora)}`);
           const rotinaList = filteredRotinas.map(r => `${r.titulo} às ${formatTime(r.hora)}`);
           const allItems = [...agendaList, ...rotinaList].join(', ');
           
-          speakTts(`Para ${timeLabel} você tem: ${allItems}.`);
+          await isaSpeak(`Para ${timeLabel} você tem: ${allItems}.`, 'rotinas');
         }
         
         setIsLoading(false);
@@ -367,20 +404,20 @@ export default function Rotinas() {
             : data.dias_semana.length === 5 
               ? 'de segunda a sexta'
               : data.dias_semana.map((d: string) => DIAS_SEMANA_LABEL[d]).join(', ');
-          speakTts(`Rotina adicionada: ${data.titulo}, ${diasLabel} às ${formatTime(data.hora)}.`);
+          await isaSpeak(`Rotina adicionada: ${data.titulo}, ${diasLabel} às ${formatTime(data.hora)}.`, 'rotinas');
           await loadRotinas();
         }
       } else if (data.tipo === 'consulta') {
         // Handle query
         if (todayRotinas.length === 0) {
-          speakTts('Você não tem rotinas para hoje.');
+          await isaSpeak('Você não tem rotinas para hoje.', 'rotinas');
         } else {
           const pending = todayRotinas.filter(r => !isRotinaCompletedToday(r.id, completions));
           if (pending.length === 0) {
-            speakTts('Parabéns! Você completou todas as rotinas de hoje.');
+            await isaSpeak('Parabéns! Você completou todas as rotinas de hoje.', 'rotinas');
           } else {
             const list = pending.map(r => `${r.titulo} às ${formatTime(r.hora)}`).join(', ');
-            speakTts(`Você ainda tem ${pending.length} rotinas pendentes: ${list}.`);
+            await isaSpeak(`Você ainda tem ${pending.length} rotinas pendentes: ${list}.`, 'rotinas');
           }
         }
       }
@@ -404,7 +441,7 @@ export default function Rotinas() {
 
     if (rotina) {
       toast.success('Rotina criada!');
-      speakTts('Rotina adicionada.');
+      await isaSpeak(`Rotina ${rotinaData.titulo} adicionada para às ${rotinaData.hora}.`, 'rotinas');
       await loadRotinas();
     }
   };
@@ -447,7 +484,7 @@ export default function Rotinas() {
         // Check if all completed
         const newCompletedCount = completedCount + 1;
         if (newCompletedCount === totalCount) {
-          speakTts('Parabéns! Você completou todas as rotinas de hoje!');
+          await isaSpeak('Parabéns! Você completou todas as rotinas de hoje!', 'rotinas');
           toast.success('🎉 Todas as rotinas completas!');
         }
       }
@@ -513,6 +550,9 @@ export default function Rotinas() {
       </div>
 
       <div className="px-4 py-4 space-y-4">
+        {/* Brazil Clock */}
+        <BrazilClock />
+
         {/* Today's Rotinas */}
         {viewMode === 'today' && (
           <AnimatePresence mode="popLayout">

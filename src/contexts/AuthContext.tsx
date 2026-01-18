@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { getProfile, createProfile, updateProfile, type Profile } from '@/lib/db';
+import { clearFinancialGreeted } from '@/services/isaVoiceService';
 
 interface AuthContextType {
   user: Profile | null;
@@ -127,6 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear audio flags so they play again on next login
     sessionStorage.removeItem('login_audio_played');
     sessionStorage.removeItem('intro_video_shown');
+    // Clear financial greeted state so voice plays again on next login
+    clearFinancialGreeted();
   };
 
   return (
