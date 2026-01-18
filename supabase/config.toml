@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.smart-transport]
 verify_jwt = false
+
+[functions.sptrans-api]
+verify_jwt = false
