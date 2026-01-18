@@ -396,7 +396,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-y-auto overflow-x-hidden">
       <AnimatedBackground introPhase={introPhase} />
 
       {/* INTRO ANIMATION SEQUENCE */}
@@ -642,7 +642,7 @@ export default function Login() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -15 }}
                   transition={{ duration: 0.2 }}
-                  className="w-full max-w-sm max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar"
+                  className="w-full max-w-sm max-h-[60dvh] overflow-y-auto pr-2 custom-scrollbar pb-4"
                 >
                   <GlassCard className="p-6">
                     <h2 className="text-xl font-semibold text-center mb-1">
@@ -665,6 +665,11 @@ export default function Login() {
                             onChange={(e) => setFullName(e.target.value)}
                             placeholder="Digite seu nome"
                             className="bg-muted/30 border-border h-10 text-sm"
+                            onFocus={(e) => {
+                              setTimeout(() => {
+                                e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }, 300);
+                            }}
                           />
                         </div>
 
@@ -679,6 +684,11 @@ export default function Login() {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="seu@email.com"
                             className="bg-muted/30 border-border h-10 text-sm"
+                            onFocus={(e) => {
+                              setTimeout(() => {
+                                e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }, 300);
+                            }}
                           />
                         </div>
 
@@ -694,6 +704,11 @@ export default function Login() {
                             placeholder="(00) 00000-0000"
                             className="bg-muted/30 border-border h-10 text-sm"
                             maxLength={15}
+                            onFocus={(e) => {
+                              setTimeout(() => {
+                                e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              }, 300);
+                            }}
                           />
                         </div>
                       </div>
