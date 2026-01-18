@@ -93,7 +93,8 @@ export default function Card() {
     initialBalance: user?.initialBalance || 0,
     enabled: !!user,
     creditLimit: creditLimit,
-    creditUsed: user?.creditUsed || 0
+    creditUsed: user?.creditUsed || 0,
+    creditDueDay: user?.creditDueDay || 5
   });
 
   const formatCurrency = (value: number) => {

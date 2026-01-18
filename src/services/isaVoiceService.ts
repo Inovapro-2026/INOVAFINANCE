@@ -242,100 +242,87 @@ export function generateFirstAccessGreeting(userName: string): string {
 
 /**
  * Generate Dashboard/Home greeting with financial data
+ * Focus: Saldo atual, quanto ganhou e quanto gastou neste mês
  */
 export function generateHomeGreeting(
   userName: string,
   balance: number,
-  todaySpent: number,
-  paymentsDueToday: number,
-  daysUntilSalary: number | null
+  monthlyIncome: number,
+  monthlyExpenses: number
 ): string {
   const firstName = userName.split(' ')[0];
   const timeGreeting = getTimeGreeting();
 
   let message = `${timeGreeting}, ${firstName}! `;
-  message += `Seu saldo disponível é de ${currencyToSpeech(balance)}. `;
-
-  if (todaySpent > 0) {
-    message += `Hoje você gastou ${currencyToSpeech(todaySpent)}. `;
+  message += `Saldo: ${currencyToSpeech(balance)}. `;
+  
+  if (monthlyIncome > 0 || monthlyExpenses > 0) {
+    message += `Este mês, ganhou ${currencyToSpeech(monthlyIncome)} e gastou ${currencyToSpeech(monthlyExpenses)}.`;
   }
-
-  if (paymentsDueToday > 0) {
-    message += `Você tem ${currencyToSpeech(paymentsDueToday)} para pagar hoje. `;
-  }
-
-  if (daysUntilSalary !== null && daysUntilSalary >= 0) {
-    if (daysUntilSalary === 0) {
-      message += 'Hoje é dia de salário! ';
-    } else if (daysUntilSalary === 1) {
-      message += 'Amanhã é dia de salário. ';
-    } else if (daysUntilSalary <= 5) {
-      message += `Faltam ${daysUntilSalary} dias para seu próximo recebimento. `;
-    }
-  }
-
-  message += 'Clique no microfone para falar comigo.';
 
   return message;
 }
 
 /**
- * Generate Planner tab greeting with goals and payments data
+ * Generate Planner tab greeting
+ * Focus: Pagamentos do mês, dias p/ salário, saldo previsto, maior gasto, economia
  */
 export function generatePlannerGreeting(
-  activeGoals: number,
-  goalsWithoutProgress: number,
   monthlyPayments: number,
-  daysUntilSalary: number | null
+  daysUntilSalary: number | null,
+  predictedBalance: number,
+  biggestExpense: { name: string; amount: number } | null,
+  savingsAmount: number
 ): string {
   let message = '';
 
-  if (activeGoals > 0) {
-    message += `Você tem ${activeGoals} ${activeGoals === 1 ? 'meta cadastrada' : 'metas cadastradas'}. `;
-
-    if (goalsWithoutProgress > 0) {
-      message += `${goalsWithoutProgress === 1 ? 'Uma meta está' : `${goalsWithoutProgress} metas estão`} sem progresso. Atualize suas metas clicando em editar. `;
-    }
-  } else {
-    message += 'Você ainda não tem metas cadastradas. Que tal criar uma agora? ';
-  }
-
   if (monthlyPayments > 0) {
-    message += `Você tem ${currencyToSpeech(monthlyPayments)} a pagar este mês. `;
+    message += `Total de contas: ${currencyToSpeech(monthlyPayments)}. `;
   }
 
   if (daysUntilSalary !== null && daysUntilSalary > 0) {
-    message += `Faltam ${daysUntilSalary} dias para seu próximo recebimento. `;
+    message += `Faltam ${daysUntilSalary} dias para o salário. `;
+  } else if (daysUntilSalary === 0) {
+    message += 'Hoje é dia de salário. ';
   }
 
-  message += 'Clique no microfone para falar com a IA.';
+  if (biggestExpense) {
+    message += `Maior gasto: ${biggestExpense.name}, ${currencyToSpeech(biggestExpense.amount)}. `;
+  }
+
+  if (predictedBalance >= 0) {
+    message += `Saldo previsto: ${currencyToSpeech(predictedBalance)}. `;
+  }
+
+  if (savingsAmount > 0) {
+    message += `Dica: guarde ${currencyToSpeech(savingsAmount)}.`;
+  }
 
   return message;
 }
 
 /**
  * Generate Card tab greeting
+ * Focus: Limite de crédito, dia da fatura, quantos dias faltam
  */
 export function generateCardGreeting(
   creditLimit: number,
-  creditUsed: number
+  creditUsed: number,
+  dueDay: number,
+  daysUntilDue: number
 ): string {
   const available = creditLimit - creditUsed;
-  const usagePercent = creditLimit > 0 ? (creditUsed / creditLimit) * 100 : 0;
 
-  let message = `Seu limite de crédito é de ${currencyToSpeech(creditLimit)}. `;
-
-  if (creditUsed > 0) {
-    message += `Você já gastou ${currencyToSpeech(creditUsed)} do seu limite. `;
-    message += `Resta ${currencyToSpeech(available)} disponível. `;
+  let message = `Limite: ${currencyToSpeech(creditLimit)}. `;
+  message += `Disponível: ${currencyToSpeech(available)}. `;
+  message += `Fatura vence dia ${dueDay}. `;
+  
+  if (daysUntilDue === 0) {
+    message += 'Vencimento hoje!';
+  } else if (daysUntilDue === 1) {
+    message += 'Vence amanhã.';
   } else {
-    message += 'Você não utilizou seu limite ainda. ';
-  }
-
-  if (usagePercent < 30 && creditLimit > 0) {
-    message += 'Você está usando seu crédito de forma responsável. Continue assim!';
-  } else if (usagePercent >= 80) {
-    message += 'Atenção! Seu limite está quase no máximo. Organize seus pagamentos no painel.';
+    message += `Faltam ${daysUntilDue} dias.`;
   }
 
   return message;
