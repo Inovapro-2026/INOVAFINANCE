@@ -173,6 +173,48 @@ export type Database = {
         }
         Relationships: []
       }
+      agenda_items: {
+        Row: {
+          concluido: boolean | null
+          created_at: string
+          data: string
+          descricao: string | null
+          hora: string
+          id: string
+          notificacao_minutos: number | null
+          tipo: string
+          titulo: string
+          updated_at: string
+          user_matricula: number
+        }
+        Insert: {
+          concluido?: boolean | null
+          created_at?: string
+          data: string
+          descricao?: string | null
+          hora: string
+          id?: string
+          notificacao_minutos?: number | null
+          tipo?: string
+          titulo: string
+          updated_at?: string
+          user_matricula: number
+        }
+        Update: {
+          concluido?: boolean | null
+          created_at?: string
+          data?: string
+          descricao?: string | null
+          hora?: string
+          id?: string
+          notificacao_minutos?: number | null
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+          user_matricula?: number
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           color: string | null
@@ -427,6 +469,74 @@ export type Database = {
           salary_day?: number | null
           updated_at?: string
           user_temp_id?: string
+        }
+        Relationships: []
+      }
+      rotina_completions: {
+        Row: {
+          created_at: string
+          data_conclusao: string
+          id: string
+          rotina_id: string
+          user_matricula: number
+        }
+        Insert: {
+          created_at?: string
+          data_conclusao: string
+          id?: string
+          rotina_id: string
+          user_matricula: number
+        }
+        Update: {
+          created_at?: string
+          data_conclusao?: string
+          id?: string
+          rotina_id?: string
+          user_matricula?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rotina_completions_rotina_id_fkey"
+            columns: ["rotina_id"]
+            isOneToOne: false
+            referencedRelation: "rotinas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rotinas: {
+        Row: {
+          ativo: boolean | null
+          created_at: string
+          dias_semana: string[]
+          hora: string
+          id: string
+          notificacao_minutos: number | null
+          titulo: string
+          updated_at: string
+          user_matricula: number
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string
+          dias_semana?: string[]
+          hora: string
+          id?: string
+          notificacao_minutos?: number | null
+          titulo: string
+          updated_at?: string
+          user_matricula: number
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string
+          dias_semana?: string[]
+          hora?: string
+          id?: string
+          notificacao_minutos?: number | null
+          titulo?: string
+          updated_at?: string
+          user_matricula?: number
         }
         Relationships: []
       }
