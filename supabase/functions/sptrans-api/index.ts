@@ -27,16 +27,20 @@ async function authenticate(): Promise<boolean> {
     throw new Error('Token SPTrans não configurado (SPTRANS_API_TOKEN)');
   }
 
-  console.log('Authenticating with SPTrans API...');
+  const token = SPTRANS_API_TOKEN.trim();
+  console.log('Authenticating with SPTrans API... token length:', token.length);
 
-  const url = `${SPTRANS_BASE_URL}/Login/Autenticar?token=${encodeURIComponent(SPTRANS_API_TOKEN)}`;
+  const url = `${SPTRANS_BASE_URL}/Login/Autenticar?token=${encodeURIComponent(token)}`;
 
   const response = await fetch(url, {
     method: 'POST',
     // SPTrans login uses querystring token + cookie session; body is empty.
     headers: {
-      'Accept': 'application/json',
+      // Some deployments are picky with headers in server-to-server calls.
+      'Accept': '*/*',
+      'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8',
       'Content-Length': '0',
+      'User-Agent': 'Mozilla/5.0 (compatible; LovableEdge/1.0)',
     },
   });
 
@@ -53,7 +57,7 @@ async function authenticate(): Promise<boolean> {
       .flatMap((h) => h.split(/,(?=[^;]+?=)/g))
       .map((cookie) => cookie.split(';')[0].trim())
       .filter(Boolean);
-    console.log('Session cookies captured:', sessionCookies.length);
+    console.log('Session cookies captured:', sessionCookies.length, sessionCookies);
   } else {
     console.warn('No Set-Cookie header returned from SPTrans login');
   }
@@ -62,6 +66,7 @@ async function authenticate(): Promise<boolean> {
   console.log('Authentication status:', response.status, 'body:', bodyText);
 
   // According to SPTrans docs, the response is boolean true/false.
+  // If this returns false consistently, the token is invalid/not activated in DevPlace.
   return response.ok && bodyText.toLowerCase() === 'true';
 }
 
@@ -466,12 +471,18 @@ serve(async (req) => {
   } catch (error) {
     console.error('SPTrans API error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-    
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: errorMessage 
+
+    const status = errorMessage.includes('Falha na autenticação') ? 401 : 500;
+    const hint = status === 401
+      ? 'O endpoint /Login/Autenticar retornou "false". Isso geralmente indica token inválido ou não ativado no DevPlace SPTrans.'
+      : undefined;
+
+    return new Response(JSON.stringify({
+      success: false,
+      error: errorMessage,
+      hint,
     }), {
-      status: 500,
+      status,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
