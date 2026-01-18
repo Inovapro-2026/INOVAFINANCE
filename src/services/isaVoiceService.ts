@@ -265,37 +265,39 @@ export function generateHomeGreeting(
 
 /**
  * Generate Planner tab greeting
- * Focus: Pagamentos do mês, dias p/ salário, saldo previsto, maior gasto, economia
+ * Focus: Salário (dia e dias restantes), pagamentos do mês, saldo previsto, maior gasto
  */
 export function generatePlannerGreeting(
+  salaryAmount: number,
+  salaryDay: number,
+  daysUntilSalary: number,
   monthlyPayments: number,
-  daysUntilSalary: number | null,
   predictedBalance: number,
-  biggestExpense: { name: string; amount: number } | null,
-  savingsAmount: number
+  biggestExpense: { name: string; amount: number } | null
 ): string {
   let message = '';
 
+  // Salário
+  if (salaryAmount > 0) {
+    message += `Salário: ${currencyToSpeech(salaryAmount)}, dia ${salaryDay}. `;
+    if (daysUntilSalary > 0) {
+      message += `Faltam ${daysUntilSalary} dias. `;
+    } else if (daysUntilSalary === 0) {
+      message += 'Hoje é dia de salário. ';
+    }
+  }
+
+  // Pagamentos do mês
   if (monthlyPayments > 0) {
-    message += `Total de contas: ${currencyToSpeech(monthlyPayments)}. `;
+    message += `Pagamentos: ${currencyToSpeech(monthlyPayments)}. `;
   }
 
-  if (daysUntilSalary !== null && daysUntilSalary > 0) {
-    message += `Faltam ${daysUntilSalary} dias para o salário. `;
-  } else if (daysUntilSalary === 0) {
-    message += 'Hoje é dia de salário. ';
-  }
+  // Saldo previsto
+  message += `Saldo previsto: ${currencyToSpeech(predictedBalance)}. `;
 
-  if (biggestExpense) {
-    message += `Maior gasto: ${biggestExpense.name}, ${currencyToSpeech(biggestExpense.amount)}. `;
-  }
-
-  if (predictedBalance >= 0) {
-    message += `Saldo previsto: ${currencyToSpeech(predictedBalance)}. `;
-  }
-
-  if (savingsAmount > 0) {
-    message += `Dica: guarde ${currencyToSpeech(savingsAmount)}.`;
+  // Maior gasto
+  if (biggestExpense && biggestExpense.amount > 0) {
+    message += `Maior gasto: ${biggestExpense.name}, ${currencyToSpeech(biggestExpense.amount)}.`;
   }
 
   return message;
