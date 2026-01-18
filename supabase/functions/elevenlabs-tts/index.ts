@@ -131,10 +131,10 @@ serve(async (req) => {
     if (!response || !response.ok) {
       const errorText = response ? await response.text() : 'All API keys exhausted';
       console.error('ElevenLabs API error:', errorText);
-      return new Response(
-        JSON.stringify({ error: 'Failed to generate speech', details: errorText }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+
+      // IMPORTANT: Avoid returning 500 here because the client treats it as a hard runtime error.
+      // Returning 204 allows the frontend to gracefully fallback to Gemini/native voice.
+      return new Response(null, { status: 204, headers: corsHeaders });
     }
 
     const audioBuffer = await response.arrayBuffer();
