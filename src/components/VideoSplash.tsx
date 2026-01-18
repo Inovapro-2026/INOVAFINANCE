@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react';
 import introVideo from '@/assets/intro-video.mp4';
 import introAudio from '@/assets/intro-audio.mp3';
+import { stopAllAudio } from '@/services/audioManager';
 
 interface VideoSplashProps {
   onComplete: () => void;
@@ -9,11 +10,15 @@ interface VideoSplashProps {
 export function VideoSplash({ onComplete }: VideoSplashProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const hasCompletedRef = useRef(false);
 
   useEffect(() => {
     const video = videoRef.current;
     const audio = audioRef.current;
     if (!video || !audio) return;
+
+    // Stop any existing audio first
+    stopAllAudio();
 
     // Auto-play video and audio together
     const playMedia = async () => {
@@ -22,7 +27,10 @@ export function VideoSplash({ onComplete }: VideoSplashProps) {
       } catch (error) {
         console.error('Error playing media:', error);
         // If autoplay fails, go to login after a short delay
-        setTimeout(onComplete, 1000);
+        if (!hasCompletedRef.current) {
+          hasCompletedRef.current = true;
+          setTimeout(onComplete, 1000);
+        }
       }
     };
 
@@ -30,13 +38,18 @@ export function VideoSplash({ onComplete }: VideoSplashProps) {
 
     // When AUDIO ends, stop video and call onComplete
     const handleAudioEnded = () => {
-      video.pause();
-      onComplete();
+      if (!hasCompletedRef.current) {
+        hasCompletedRef.current = true;
+        video.pause();
+        audio.pause();
+        // Small delay to ensure audio is fully stopped before login audio starts
+        setTimeout(onComplete, 300);
+      }
     };
 
     // Loop video if it ends before audio
     const handleVideoEnded = () => {
-      if (audio && !audio.ended) {
+      if (audio && !audio.ended && !hasCompletedRef.current) {
         video.currentTime = 0;
         video.play().catch(console.error);
       }
