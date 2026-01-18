@@ -85,11 +85,8 @@ export function useIsaGreeting({
     }
     
     console.log(`[IsaGreeting] Starting greeting for ${pageType}`);
-
     isProcessing.current = true;
 
-
-    isProcessing.current = true;
 
     try {
       const isFirstAccess = isFirstAccessToday();
