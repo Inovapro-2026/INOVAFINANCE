@@ -48,48 +48,91 @@ export function ModeToggle() {
   };
 
   return (
-    <div className="flex items-center justify-center gap-2 px-4 py-2">
-      <div className="flex items-center bg-muted/50 rounded-full p-1 backdrop-blur-sm">
-        <button
+    <motion.div 
+      className="flex items-center justify-center gap-2 px-4 py-2"
+      initial={false}
+    >
+      <div className="flex items-center bg-muted/50 rounded-full p-1 backdrop-blur-sm border border-border/50 shadow-sm">
+        <motion.button
           onClick={() => handleModeChange('financas')}
           className={cn(
-            "relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
+            "relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors",
             mode === 'financas' ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
           )}
+          whileHover={{ scale: mode === 'financas' ? 1 : 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
           {mode === 'financas' && (
             <motion.div
               layoutId="modeIndicator"
-              className="absolute inset-0 bg-primary rounded-full"
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              className="absolute inset-0 bg-primary rounded-full shadow-lg"
+              initial={false}
+              transition={{ 
+                type: "spring", 
+                stiffness: 500, 
+                damping: 35,
+                mass: 0.8
+              }}
             />
           )}
-          <span className="relative z-10 flex items-center gap-1.5">
-            <Wallet className="w-4 h-4" />
+          <motion.span 
+            className="relative z-10 flex items-center gap-1.5"
+            animate={{ 
+              scale: mode === 'financas' ? 1 : 0.95,
+              opacity: mode === 'financas' ? 1 : 0.7
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <motion.div
+              animate={{ rotate: mode === 'financas' ? [0, -10, 0] : 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+            >
+              <Wallet className="w-4 h-4" />
+            </motion.div>
             Finanças
-          </span>
-        </button>
+          </motion.span>
+        </motion.button>
 
-        <button
+        <motion.button
           onClick={() => handleModeChange('rotinas')}
           className={cn(
-            "relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all",
+            "relative flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors",
             mode === 'rotinas' ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"
           )}
+          whileHover={{ scale: mode === 'rotinas' ? 1 : 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
           {mode === 'rotinas' && (
             <motion.div
               layoutId="modeIndicator"
-              className="absolute inset-0 bg-primary rounded-full"
-              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              className="absolute inset-0 bg-primary rounded-full shadow-lg"
+              initial={false}
+              transition={{ 
+                type: "spring", 
+                stiffness: 500, 
+                damping: 35,
+                mass: 0.8
+              }}
             />
           )}
-          <span className="relative z-10 flex items-center gap-1.5">
-            <RefreshCw className="w-4 h-4" />
+          <motion.span 
+            className="relative z-10 flex items-center gap-1.5"
+            animate={{ 
+              scale: mode === 'rotinas' ? 1 : 0.95,
+              opacity: mode === 'rotinas' ? 1 : 0.7
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <motion.div
+              animate={{ rotate: mode === 'rotinas' ? 360 : 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <RefreshCw className="w-4 h-4" />
+            </motion.div>
             Rotinas
-          </span>
-        </button>
+          </motion.span>
+        </motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 }
