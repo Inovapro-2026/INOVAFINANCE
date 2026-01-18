@@ -651,11 +651,12 @@ export default function Goals() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => {
-                    const notification = sendTestNotification();
-                    if (notification) {
+                  onClick={async () => {
+                    try {
+                      await sendTestNotification();
                       toast.success('Notificação de teste enviada!');
-                    } else {
+                    } catch (err) {
+                      console.error('Error sending test notification:', err);
                       toast.error('Erro ao enviar notificação');
                     }
                   }}

@@ -7,6 +7,50 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 /**
+ * Fallback to Gemini TTS via edge function
+ */
+async function speakWithGeminiTts(text: string): Promise<boolean> {
+  try {
+    console.log('TTS: Falling back to Gemini TTS');
+    
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-tts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!response.ok) {
+      console.warn('TTS: Gemini TTS failed, status:', response.status);
+      return false;
+    }
+
+    const contentType = response.headers.get('Content-Type');
+    if (!contentType?.includes('audio')) {
+      console.warn('TTS: Gemini returned non-audio response');
+      return false;
+    }
+
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    
+    audio.onended = () => URL.revokeObjectURL(audioUrl);
+    audio.onerror = () => URL.revokeObjectURL(audioUrl);
+
+    await playAudioExclusively(audio);
+    console.log('TTS: Gemini audio played successfully');
+    return true;
+  } catch (error) {
+    console.error('TTS: Gemini TTS error:', error);
+    return false;
+  }
+}
+
+/**
  * Format currency values for natural Brazilian Portuguese speech
  */
 function formatCurrencyForSpeech(text: string): string {
@@ -115,8 +159,12 @@ export async function speakWithElevenLabs(text: string): Promise<void> {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('ElevenLabs TTS Error:', errorText);
-      // Fallback to native TTS
-      return speakWithNativeTts(cleanText);
+      // Fallback to Gemini TTS first, then native
+      const geminiSuccess = await speakWithGeminiTts(cleanText);
+      if (!geminiSuccess) {
+        return speakWithNativeTts(cleanText);
+      }
+      return;
     }
 
     // Get audio as blob
@@ -135,9 +183,13 @@ export async function speakWithElevenLabs(text: string): Promise<void> {
 
     return playAudioExclusively(audio);
   } catch (error) {
-    console.error('ElevenLabs TTS Error, falling back to native:', error);
-    // Fallback to native browser TTS
-    return speakWithNativeTts(cleanText);
+    console.error('ElevenLabs TTS Error, trying Gemini fallback:', error);
+    // Fallback to Gemini TTS first, then native
+    const geminiSuccess = await speakWithGeminiTts(cleanText);
+    if (!geminiSuccess) {
+      console.log('TTS: Gemini failed, using native fallback');
+      return speakWithNativeTts(cleanText);
+    }
   }
 }
 

@@ -120,30 +120,55 @@ export function playNotificationSound(): void {
 
 /**
  * Send a local notification with optional vibration and sound
+ * Works even when the app is in background using Service Worker when available
  */
-export function sendNotification(
+export async function sendNotification(
   title: string, 
   body?: string,
   tag?: string,
   vibrate: boolean = true,
   playSound: boolean = true
-): Notification | null {
+): Promise<Notification | null> {
   if (!hasNotificationPermission()) {
     console.warn('Notification permission not granted');
     return null;
   }
 
   try {
+    // Play notification sound first (only works in foreground)
+    if (playSound && document.visibilityState === 'visible') {
+      playNotificationSound();
+    }
+
     // Vibrate device when notification is sent
     if (vibrate) {
       vibrateDevice([200, 100, 200, 100, 300]);
     }
 
-    // Play notification sound
-    if (playSound) {
-      playNotificationSound();
+    // Try Service Worker notification for background support
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      const registration = await navigator.serviceWorker.ready;
+      // Use type assertion for extended notification options
+      const options: NotificationOptions & { vibrate?: number[] } = {
+        body,
+        icon: '/apple-touch-icon.png',
+        badge: '/apple-touch-icon.png',
+        tag: tag || 'default',
+        requireInteraction: true,
+        silent: !playSound,
+      };
+      
+      // Add vibrate pattern if supported (mobile only)
+      if (vibrate && 'vibrate' in navigator) {
+        (options as any).vibrate = [200, 100, 200, 100, 300];
+      }
+      
+      await registration.showNotification(title, options);
+      console.log('Notification sent via Service Worker');
+      return null; // SW notification doesn't return Notification object
     }
 
+    // Fallback to regular Notification API
     const notification = new Notification(title, {
       body,
       icon: '/apple-touch-icon.png',
@@ -158,6 +183,7 @@ export function sendNotification(
       notification.close();
     };
 
+    console.log('Notification sent via Notification API');
     return notification;
   } catch (err) {
     console.error('Error sending notification:', err);
@@ -168,11 +194,12 @@ export function sendNotification(
 /**
  * Send a test notification
  */
-export function sendTestNotification(): Notification | null {
-  return sendNotification(
+export async function sendTestNotification(): Promise<Notification | null> {
+  return await sendNotification(
     '🔔 Teste de Notificação',
     'As notificações estão funcionando corretamente!',
     'test-notification',
+    true,
     true
   );
 }
@@ -180,14 +207,14 @@ export function sendTestNotification(): Notification | null {
 /**
  * Send payment reminder notification
  */
-export function sendPaymentReminder(reminder: PaymentReminder): Notification | null {
+export async function sendPaymentReminder(reminder: PaymentReminder): Promise<Notification | null> {
   const typeLabel = reminder.type === 'salary' ? 'Salário' : 'Adiantamento';
   const formattedAmount = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL'
   }).format(reminder.amount);
 
-  return sendNotification(
+  return await sendNotification(
     `💰 ${typeLabel} em ${reminder.daysUntil} dia${reminder.daysUntil > 1 ? 's' : ''}!`,
     `Seu ${typeLabel.toLowerCase()} de ${formattedAmount} será creditado no dia ${reminder.day}.`,
     `payment-reminder-${reminder.type}`
