@@ -23,3 +23,12 @@ verify_jwt = false
 
 [functions.check-affiliate-status]
 verify_jwt = false
+
+[functions.elevenlabs-tts]
+verify_jwt = false
+
+[functions.gemini-assistant]
+verify_jwt = false
+
+[functions.parse-agenda-command]
+verify_jwt = false
