@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { getProfile, createProfile, updateProfile, type Profile } from '@/lib/db';
 import { clearFinancialGreeted } from '@/services/isaVoiceService';
-
+import { startSession, endSession } from '@/services/sessionTrackingService';
+import { supabase } from '@/integrations/supabase/client';
+import { RealtimeChannel } from '@supabase/supabase-js';
 interface AuthContextType {
   user: Profile | null;
   isLoading: boolean;
@@ -29,6 +31,7 @@ const AuthContext: React.Context<AuthContextType | undefined> =
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const presenceChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     // Check for existing session
@@ -38,7 +41,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setIsLoading(false);
     }
+
+    // Cleanup on unmount
+    return () => {
+      if (presenceChannelRef.current) {
+        presenceChannelRef.current.unsubscribe();
+      }
+    };
   }, []);
+
+  // Track presence when user changes
+  useEffect(() => {
+    if (user) {
+      trackUserPresence(user);
+    }
+  }, [user]);
+
+  const trackUserPresence = async (profile: Profile) => {
+    // Start session in database
+    await startSession(profile.userId, profile.fullName);
+
+    // Setup realtime presence
+    const channel = supabase.channel('online-users');
+    presenceChannelRef.current = channel;
+
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({
+          matricula: profile.userId,
+          name: profile.fullName || `Mat. ${profile.userId}`,
+          online_at: new Date().toISOString()
+        });
+      }
+    });
+  };
 
   const loadUser = async (matricula: number) => {
     try {
@@ -122,7 +158,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // End session tracking
+    await endSession();
+    
+    // Unsubscribe from presence channel
+    if (presenceChannelRef.current) {
+      await presenceChannelRef.current.unsubscribe();
+      presenceChannelRef.current = null;
+    }
+
     setUser(null);
     localStorage.removeItem('inovabank_matricula');
     // Clear audio flags so they play again on next login

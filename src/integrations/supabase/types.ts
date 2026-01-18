@@ -787,6 +787,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          is_online: boolean
+          last_activity: string
+          session_end: string | null
+          session_start: string
+          user_matricula: number
+          user_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_online?: boolean
+          last_activity?: string
+          session_end?: string | null
+          session_start?: string
+          user_matricula: number
+          user_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_online?: boolean
+          last_activity?: string
+          session_end?: string | null
+          session_start?: string
+          user_matricula?: number
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       users_matricula: {
         Row: {
           admin_affiliate_created_at: string | null
