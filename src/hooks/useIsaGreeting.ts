@@ -22,7 +22,6 @@ import {
 import { stopAllVoice, isVoicePlaying } from '@/services/voiceQueueService';
 import { calculateBalance, getTransactions, getGoals } from '@/lib/db';
 import {
-  getScheduledPayments,
   getUserSalaryInfo,
   calculateMonthlySummary
 } from '@/lib/plannerDb';
@@ -158,41 +157,31 @@ export function useIsaGreeting({
         }
 
         case 'planner': {
-          const [salaryInfo, scheduledPayments] = await Promise.all([
-            getUserSalaryInfo(userId),
-            getScheduledPayments(userId)
-          ]);
-
-          // Calculate monthly payments total
-          const monthlyPayments = scheduledPayments
-            .filter(p => p.isActive)
-            .reduce((sum, p) => sum + p.amount, 0);
-
-          // Find biggest expense (by category or name)
-          const biggestPayment = scheduledPayments
-            .filter(p => p.isActive)
-            .sort((a, b) => b.amount - a.amount)[0];
-          const biggestExpense = biggestPayment 
-            ? { name: biggestPayment.category || biggestPayment.name, amount: biggestPayment.amount }
-            : null;
-
-          // Salary info
+          const salaryInfo = await getUserSalaryInfo(userId);
+          
+          // Use the same calculation as Planner page - calculateMonthlySummary
           const salaryAmount = salaryInfo?.salaryAmount || 0;
           const salaryDay = salaryInfo?.salaryDay || 5;
+          const advanceAmount = salaryInfo?.advanceAmount || 0;
+          
+          // Use same function as Planner page (already imported)
+          const summary = await calculateMonthlySummary(userId, salaryAmount, salaryDay, advanceAmount);
+          
           const daysUntilSalary = salaryInfo?.salaryDay
             ? calculateDaysUntilDay(salaryInfo.salaryDay)
             : 0;
 
-          // Calculate predicted balance
-          const totalIncome = salaryAmount + (salaryInfo?.advanceAmount || 0);
-          const predictedBalance = totalIncome - monthlyPayments;
+          // Get biggest expense from summary (same as displayed)
+          const biggestExpense = summary.heaviestPayment 
+            ? { name: summary.heaviestPayment.category || summary.heaviestPayment.name, amount: summary.heaviestPayment.amount }
+            : null;
 
           message = generatePlannerGreeting(
             salaryAmount,
             salaryDay,
             daysUntilSalary,
-            monthlyPayments,
-            predictedBalance,
+            summary.totalPayments,
+            summary.projectedBalance,
             biggestExpense
           );
           break;
