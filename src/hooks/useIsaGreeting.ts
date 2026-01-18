@@ -168,31 +168,32 @@ export function useIsaGreeting({
             .filter(p => p.isActive)
             .reduce((sum, p) => sum + p.amount, 0);
 
-          // Find biggest expense
+          // Find biggest expense (by category or name)
           const biggestPayment = scheduledPayments
             .filter(p => p.isActive)
             .sort((a, b) => b.amount - a.amount)[0];
           const biggestExpense = biggestPayment 
-            ? { name: biggestPayment.name, amount: biggestPayment.amount }
+            ? { name: biggestPayment.category || biggestPayment.name, amount: biggestPayment.amount }
             : null;
 
+          // Salary info
+          const salaryAmount = salaryInfo?.salaryAmount || 0;
+          const salaryDay = salaryInfo?.salaryDay || 5;
           const daysUntilSalary = salaryInfo?.salaryDay
             ? calculateDaysUntilDay(salaryInfo.salaryDay)
-            : null;
+            : 0;
 
-          // Calculate predicted balance (simplified)
-          const totalIncome = (salaryInfo?.salaryAmount || 0) + (salaryInfo?.advanceAmount || 0);
+          // Calculate predicted balance
+          const totalIncome = salaryAmount + (salaryInfo?.advanceAmount || 0);
           const predictedBalance = totalIncome - monthlyPayments;
-          
-          // Savings suggestion (10% of predicted balance if positive)
-          const savingsAmount = predictedBalance > 0 ? Math.floor(predictedBalance * 0.1) : 0;
 
           message = generatePlannerGreeting(
-            monthlyPayments,
+            salaryAmount,
+            salaryDay,
             daysUntilSalary,
+            monthlyPayments,
             predictedBalance,
-            biggestExpense,
-            savingsAmount
+            biggestExpense
           );
           break;
         }
